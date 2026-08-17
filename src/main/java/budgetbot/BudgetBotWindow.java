@@ -12,9 +12,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Locale;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
+import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -24,12 +24,15 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
+import javafx.scene.control.SplitPane;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -42,6 +45,8 @@ import javafx.stage.Stage;
 final class BudgetBotWindow {
   private static final DateTimeFormatter MONTH_FORMAT = DateTimeFormatter.ofPattern("MMMM uuuu");
   private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("d MMM uuuu");
+  private static final String AMOUNT_LABEL = "Amount";
+  private static final String TABLE_ACTION_STYLE_CLASS = "table-action";
 
   private final Stage stage;
   private final BudgetService service;
@@ -58,6 +63,7 @@ final class BudgetBotWindow {
     layout.setLeft(navigation());
     layout.setCenter(dashboardView());
     Scene scene = new Scene(layout, 1120, 720);
+    scene.getStylesheets().add(BudgetBotWindow.class.getResource("budgetbot.css").toExternalForm());
     stage.setTitle("BudgetBot");
     stage.setMinWidth(840);
     stage.setMinHeight(540);
@@ -70,13 +76,13 @@ final class BudgetBotWindow {
     title.getStyleClass().add("title");
     Button dashboard = new Button("Dashboard");
     Button transactions = new Button("Transactions");
-    Button categories = new Button("Categories & budgets");
+    Button budgets = new Button("Budgets");
     Button settings = new Button("Settings");
     dashboard.setOnAction(event -> layout.setCenter(dashboardView()));
     transactions.setOnAction(event -> layout.setCenter(transactionsView()));
-    categories.setOnAction(event -> layout.setCenter(categoriesView()));
+    budgets.setOnAction(event -> layout.setCenter(budgetsView()));
     settings.setOnAction(event -> layout.setCenter(settingsView()));
-    VBox navigation = new VBox(12, title, dashboard, transactions, categories, settings);
+    VBox navigation = new VBox(12, title, dashboard, transactions, budgets, settings);
     navigation.setPadding(new Insets(24));
     navigation.setMinWidth(180);
     navigation.getStyleClass().add("navigation");
@@ -87,29 +93,20 @@ final class BudgetBotWindow {
     DashboardSnapshot snapshot = service.dashboard(selectedMonth);
     Label balance = new Label("Overall balance: " + money(snapshot.overallBalance()));
     balance.getStyleClass().add("balance");
-    VBox summaries = new VBox(10);
-    for (CategorySummary summary : snapshot.categorySummaries()) {
-      summaries.getChildren().add(categoryProgress(summary));
-    }
-    Label recentTitle = new Label("Recent activity");
-    recentTitle.getStyleClass().add("section-title");
-    ListView<Transaction> recent = transactionList(snapshot.recentTransactions());
-    recent.setPrefHeight(190);
-    VBox content =
-        new VBox(
-            18,
-            monthControls(),
-            balance,
-            new Label("Category budgets"),
-            summaries,
-            recentTitle,
-            recent);
+    TableView<CategorySummary> budgets = budgetSummaryTable(snapshot.categorySummaries(), false);
+    TableView<Transaction> recent = transactionTable(snapshot.recentTransactions(), false);
+    SplitPane tables =
+        new SplitPane(
+            tableSection("Budget status", budgets), tableSection("Recent activity", recent));
+    tables.setOrientation(javafx.geometry.Orientation.VERTICAL);
+    tables.setDividerPositions(0.58);
+    VBox content = new VBox(18, monthControls(this::dashboardView), balance, tables);
     content.setPadding(new Insets(28));
-    VBox.setVgrow(recent, Priority.ALWAYS);
+    VBox.setVgrow(tables, Priority.ALWAYS);
     return content;
   }
 
-  private HBox monthControls() {
+  private HBox monthControls(java.util.function.Supplier<VBox> currentView) {
     Button previous = new Button("<");
     Button next = new Button(">");
     Label month = new Label(selectedMonth.format(MONTH_FORMAT));
@@ -117,77 +114,45 @@ final class BudgetBotWindow {
     previous.setOnAction(
         event -> {
           selectedMonth = selectedMonth.minusMonths(1);
-          layout.setCenter(dashboardView());
+          layout.setCenter(currentView.get());
         });
     next.setOnAction(
         event -> {
           selectedMonth = selectedMonth.plusMonths(1);
-          layout.setCenter(dashboardView());
+          layout.setCenter(currentView.get());
         });
     HBox controls = new HBox(10, previous, month, next);
     controls.setAlignment(Pos.CENTER_LEFT);
     return controls;
   }
 
-  private VBox categoryProgress(CategorySummary summary) {
-    Label name = new Label(summary.category().name());
-    Label amounts = new Label(money(summary.spent()) + " spent of " + money(summary.available()));
-    Label state = new Label(stateText(summary));
-    state.getStyleClass().add(summary.state().name().toLowerCase(Locale.ROOT) + "-state");
-    ProgressBar progress = new ProgressBar(progress(summary));
-    progress.setMaxWidth(Double.MAX_VALUE);
-    VBox card = new VBox(4, new HBox(16, name, state), amounts, progress);
-    card.getStyleClass().add("budget-card");
-    return card;
-  }
-
   private VBox transactionsView() {
-    ListView<Transaction> transactions = transactionList(service.transactions(selectedMonth));
+    TableView<Transaction> transactions =
+        transactionTable(service.transactions(selectedMonth), true);
     Button add = new Button("Add transaction");
-    Button edit = new Button("Edit selected");
-    Button delete = new Button("Delete selected");
     add.setOnAction(event -> editTransaction(null, transactions));
-    edit.setOnAction(
-        event -> editTransaction(transactions.getSelectionModel().getSelectedItem(), transactions));
-    delete.setOnAction(
-        event ->
-            deleteTransaction(transactions.getSelectionModel().getSelectedItem(), transactions));
     VBox content =
         new VBox(
             16,
-            monthControls(),
+            monthControls(this::transactionsView),
             new Label("Transactions"),
             transactions,
-            new HBox(10, add, edit, delete));
+            new HBox(10, add));
     content.setPadding(new Insets(28));
     VBox.setVgrow(transactions, Priority.ALWAYS);
     return content;
   }
 
-  private VBox categoriesView() {
-    ListView<Category> categories =
-        new ListView<>(FXCollections.observableArrayList(service.categories()));
-    TextField amount = new TextField();
-    amount.setPromptText("Monthly amount");
+  private VBox budgetsView() {
+    TableView<CategorySummary> budgets =
+        budgetSummaryTable(service.dashboard(selectedMonth).categorySummaries(), true);
     Button add = new Button("Add");
-    Button rename = new Button("Rename");
-    Button remove = new Button("Remove");
-    Button saveBudget = new Button("Set selected-month budget");
-    add.setOnAction(event -> addCategory(categories));
-    rename.setOnAction(event -> renameCategory(categories));
-    remove.setOnAction(event -> removeCategory(categories));
-    saveBudget.setOnAction(
-        event -> saveBudget(categories.getSelectionModel().getSelectedItem(), amount));
+    add.setOnAction(event -> addCategory(budgets));
     VBox content =
         new VBox(
-            16,
-            monthControls(),
-            new Label("Categories and budgets"),
-            categories,
-            new HBox(10, add, rename, remove),
-            new HBox(10, amount, saveBudget));
+            16, monthControls(this::budgetsView), new Label("Budgets"), budgets, new HBox(10, add));
     content.setPadding(new Insets(28));
-    VBox.setVgrow(categories, Priority.ALWAYS);
+    VBox.setVgrow(budgets, Priority.ALWAYS);
     return content;
   }
 
@@ -222,9 +187,8 @@ final class BudgetBotWindow {
     return content;
   }
 
-  private void editTransaction(Transaction transaction, ListView<Transaction> list) {
-    Transaction existing =
-        transaction == null ? list.getSelectionModel().getSelectedItem() : transaction;
+  private void editTransaction(Transaction transaction, TableView<Transaction> table) {
+    Transaction existing = transaction;
     Dialog<Transaction> dialog = new Dialog<>();
     dialog.setTitle(transaction == null ? "Add transaction" : "Edit transaction");
     ButtonType saveType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
@@ -233,8 +197,9 @@ final class BudgetBotWindow {
         new ComboBox<>(FXCollections.observableArrayList(TransactionType.values()));
     type.setValue(existing == null ? TransactionType.EXPENSE : existing.type());
     TextField amount = new TextField(existing == null ? "" : existing.amount().toPlainString());
-    TextField date =
-        new TextField(existing == null ? LocalDate.now().toString() : existing.date().toString());
+    DatePicker date = new DatePicker(existing == null ? LocalDate.now() : existing.date());
+    date.setPromptText("Choose a date");
+    date.setEditable(false);
     TextField description = new TextField(existing == null ? "" : existing.description());
     ComboBox<Category> category =
         new ComboBox<>(FXCollections.observableArrayList(service.categories()));
@@ -256,11 +221,30 @@ final class BudgetBotWindow {
     fields.setHgap(10);
     fields.setVgap(10);
     fields.addRow(0, new Label("Type"), type);
-    fields.addRow(1, new Label("Amount"), amount);
-    fields.addRow(2, new Label("Date (YYYY-MM-DD)"), date);
+    fields.addRow(1, new Label(AMOUNT_LABEL), amount);
+    fields.addRow(2, new Label("Date"), date);
     fields.addRow(3, new Label("Description"), description);
     fields.addRow(4, new Label("Category"), category);
-    dialog.getDialogPane().setContent(fields);
+    Label validation = validationMessage();
+    dialog.getDialogPane().setContent(new VBox(10, fields, validation));
+    Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveType);
+    saveButton.addEventFilter(
+        ActionEvent.ACTION,
+        event -> {
+          try {
+            parseMoney(amount.getText(), AMOUNT_LABEL, false);
+            if (date.getValue() == null) {
+              throw new IllegalArgumentException("Choose a transaction date.");
+            }
+            if (type.getValue() == TransactionType.EXPENSE && category.getValue() == null) {
+              throw new IllegalArgumentException("Choose a category for an expense.");
+            }
+            validation.setText("");
+          } catch (IllegalArgumentException exception) {
+            validation.setText(exception.getMessage());
+            event.consume();
+          }
+        });
     dialog.setResultConverter(
         button -> {
           if (button != saveType) {
@@ -269,8 +253,8 @@ final class BudgetBotWindow {
           return new Transaction(
               existing == null ? 0 : existing.id(),
               type.getValue(),
-              new BigDecimal(amount.getText().trim()),
-              LocalDate.parse(date.getText().trim()),
+              parseMoney(amount.getText(), AMOUNT_LABEL, false),
+              date.getValue(),
               description.getText(),
               category.getValue() == null ? null : category.getValue().id());
         });
@@ -289,7 +273,7 @@ final class BudgetBotWindow {
                 } else {
                   service.updateTransaction(saved);
                 }
-                list.setItems(
+                table.setItems(
                     FXCollections.observableArrayList(service.transactions(selectedMonth)));
               } catch (IllegalArgumentException | BudgetPersistenceException exception) {
                 showError(exception);
@@ -297,109 +281,241 @@ final class BudgetBotWindow {
             });
   }
 
-  private void deleteTransaction(Transaction transaction, ListView<Transaction> list) {
-    if (transaction == null) {
-      showInformation("Select a transaction", "Choose a transaction before deleting it.");
-      return;
-    }
+  private void deleteTransaction(Transaction transaction, TableView<Transaction> table) {
     if (confirm("Delete transaction", "Delete this transaction?")) {
       service.deleteTransaction(transaction.id());
-      list.setItems(FXCollections.observableArrayList(service.transactions(selectedMonth)));
+      table.setItems(FXCollections.observableArrayList(service.transactions(selectedMonth)));
     }
   }
 
-  private void addCategory(ListView<Category> list) {
+  private void addCategory(TableView<CategorySummary> table) {
     textPrompt("Add category", "Category name")
         .ifPresent(
             name -> {
               try {
                 service.addCategory(name);
-                list.setItems(FXCollections.observableArrayList(service.categories()));
+                refreshBudgetTable(table);
               } catch (IllegalArgumentException | BudgetPersistenceException exception) {
                 showError(exception);
               }
             });
   }
 
-  private void renameCategory(ListView<Category> list) {
-    Category selected = list.getSelectionModel().getSelectedItem();
-    if (selected == null) {
-      showInformation("Select a category", "Choose a category before renaming it.");
-      return;
-    }
-    textPrompt("Rename category", "New category name", selected.name())
+  private void renameCategory(Category category, TableView<CategorySummary> table) {
+    textPrompt("Rename category", "New category name", category.name())
         .ifPresent(
             name -> {
               try {
-                service.renameCategory(selected.id(), name);
-                list.setItems(FXCollections.observableArrayList(service.categories()));
+                service.renameCategory(category.id(), name);
+                refreshBudgetTable(table);
               } catch (IllegalArgumentException | BudgetPersistenceException exception) {
                 showError(exception);
               }
             });
   }
 
-  private void removeCategory(ListView<Category> list) {
-    Category selected = list.getSelectionModel().getSelectedItem();
-    if (selected == null) {
-      showInformation("Select a category", "Choose a category before removing it.");
-      return;
-    }
+  private void removeCategory(Category category, TableView<CategorySummary> table) {
     ComboBox<Category> replacement =
         new ComboBox<>(FXCollections.observableArrayList(service.categories()));
-    replacement.getItems().remove(selected);
+    replacement.getItems().remove(category);
     replacement.setCellFactory(ignored -> new CategoryCell());
     replacement.setButtonCell(new CategoryCell());
     Dialog<Category> dialog = new Dialog<>();
-    dialog.setTitle("Remove " + selected.name());
+    dialog.setTitle("Remove " + category.name());
     ButtonType remove = new ButtonType("Reassign and remove", ButtonBar.ButtonData.OK_DONE);
     dialog.getDialogPane().getButtonTypes().addAll(remove, ButtonType.CANCEL);
-    dialog.getDialogPane().setContent(new VBox(8, new Label("Reassign expenses to:"), replacement));
+    Label validation = validationMessage();
+    dialog
+        .getDialogPane()
+        .setContent(new VBox(8, new Label("Reassign expenses to:"), replacement, validation));
+    Button removeButton = (Button) dialog.getDialogPane().lookupButton(remove);
+    removeButton.addEventFilter(
+        ActionEvent.ACTION,
+        event -> {
+          if (replacement.getValue() == null) {
+            validation.setText("Choose a replacement category before removing this one.");
+            event.consume();
+          }
+        });
     dialog.setResultConverter(button -> button == remove ? replacement.getValue() : null);
     dialog
         .showAndWait()
         .ifPresent(
             target -> {
               try {
-                service.removeCategory(selected.id(), target.id());
-                list.setItems(FXCollections.observableArrayList(service.categories()));
+                service.removeCategory(category.id(), target.id());
+                refreshBudgetTable(table);
               } catch (IllegalArgumentException | BudgetPersistenceException exception) {
                 showError(exception);
               }
             });
   }
 
-  private void saveBudget(Category category, TextField amount) {
-    if (category == null) {
-      showInformation("Select a category", "Choose a category before setting its budget.");
-      return;
-    }
-    try {
-      service.setMonthlyBudget(
-          category.id(), selectedMonth, new BigDecimal(amount.getText().trim()));
-      amount.clear();
-      showInformation("Budget saved", "The selected month's base amount was saved.");
-    } catch (IllegalArgumentException | BudgetPersistenceException exception) {
-      showError(exception);
-    }
+  private void saveBudget(Category category, TableView<CategorySummary> table) {
+    moneyPrompt("Set " + category.name() + " budget", "Monthly base amount", true)
+        .ifPresent(
+            amount -> {
+              try {
+                service.setMonthlyBudget(category.id(), selectedMonth, amount);
+                refreshBudgetTable(table);
+              } catch (IllegalArgumentException | BudgetPersistenceException exception) {
+                showError(exception);
+              }
+            });
   }
 
-  private ListView<Transaction> transactionList(List<Transaction> transactions) {
-    ListView<Transaction> list = new ListView<>(FXCollections.observableArrayList(transactions));
-    list.setCellFactory(ignored -> new TransactionCell());
-    return list;
+  private VBox tableSection(String title, TableView<?> table) {
+    Label heading = new Label(title);
+    heading.getStyleClass().add("section-title");
+    VBox section = new VBox(8, heading, table);
+    VBox.setVgrow(table, Priority.ALWAYS);
+    return section;
   }
 
-  private double progress(CategorySummary summary) {
-    if (summary.available().signum() <= 0) {
-      return summary.spent().signum() > 0 ? 1 : 0;
+  private TableView<Transaction> transactionTable(
+      java.util.List<Transaction> transactions, boolean includeActions) {
+    TableView<Transaction> table = createTable(transactions, "No transactions for this month.");
+    table
+        .getColumns()
+        .add(textColumn("Date", transaction -> transaction.date().format(DATE_FORMAT), 120));
+    table.getColumns().add(textColumn("Type", transaction -> transaction.type().name(), 100));
+    table
+        .getColumns()
+        .add(
+            textColumn(
+                "Description",
+                transaction ->
+                    transaction.description().isBlank()
+                        ? transaction.type().name()
+                        : transaction.description(),
+                220));
+    table
+        .getColumns()
+        .add(textColumn("Category", transaction -> categoryName(transaction.categoryId()), 150));
+    table
+        .getColumns()
+        .add(
+            textColumn(
+                AMOUNT_LABEL,
+                transaction ->
+                    (transaction.type() == TransactionType.INCOME ? "+" : "-")
+                        + money(transaction.amount()),
+                120));
+    if (includeActions) {
+      table.getColumns().add(transactionActionsColumn(table));
     }
-    return Math.min(
-        1,
-        summary
-            .spent()
-            .divide(summary.available(), 4, java.math.RoundingMode.HALF_UP)
-            .doubleValue());
+    return table;
+  }
+
+  private TableView<CategorySummary> budgetSummaryTable(
+      java.util.List<CategorySummary> summaries, boolean includeActions) {
+    TableView<CategorySummary> table = createTable(summaries, "No budget categories yet.");
+    table.getColumns().add(textColumn("Category", summary -> summary.category().name(), 180));
+    table.getColumns().add(textColumn("Available", summary -> money(summary.available()), 130));
+    table.getColumns().add(textColumn("Spent", summary -> money(summary.spent()), 130));
+    table.getColumns().add(textColumn("Remaining", summary -> money(summary.remaining()), 130));
+    table.getColumns().add(textColumn("Status", this::stateText, 220));
+    if (includeActions) {
+      table.getColumns().add(budgetActionsColumn(table));
+    }
+    return table;
+  }
+
+  private <T> TableView<T> createTable(java.util.List<T> items, String emptyText) {
+    TableView<T> table = new TableView<>(FXCollections.observableArrayList(items));
+    table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_NEXT_COLUMN);
+    table.setPlaceholder(new Label(emptyText));
+    table.getStyleClass().add("data-table");
+    return table;
+  }
+
+  private <T> TableColumn<T, String> textColumn(
+      String title, java.util.function.Function<T, String> value, double width) {
+    TableColumn<T, String> column = new TableColumn<>(title);
+    column.setCellValueFactory(data -> new ReadOnlyStringWrapper(value.apply(data.getValue())));
+    column.setPrefWidth(width);
+    return column;
+  }
+
+  private TableColumn<Transaction, Void> transactionActionsColumn(TableView<Transaction> table) {
+    TableColumn<Transaction, Void> actions = new TableColumn<>("Actions");
+    actions.setPrefWidth(150);
+    actions.setCellFactory(
+        ignored ->
+            new TableCell<>() {
+              private final Button edit = new Button("Edit");
+              private final Button delete = new Button("Delete");
+              private final HBox buttons = new HBox(6, edit, delete);
+
+              {
+                buttons.getStyleClass().add("row-actions");
+                edit.getStyleClass().add(TABLE_ACTION_STYLE_CLASS);
+                delete.getStyleClass().addAll(TABLE_ACTION_STYLE_CLASS, "danger-action");
+                edit.setOnAction(event -> editTransaction(row(), table));
+                delete.setOnAction(event -> deleteTransaction(row(), table));
+              }
+
+              @Override
+              protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : buttons);
+              }
+
+              private Transaction row() {
+                return getTableView().getItems().get(getIndex());
+              }
+            });
+    return actions;
+  }
+
+  private TableColumn<CategorySummary, Void> budgetActionsColumn(TableView<CategorySummary> table) {
+    TableColumn<CategorySummary, Void> actions = new TableColumn<>("Actions");
+    actions.setPrefWidth(270);
+    actions.setCellFactory(
+        ignored ->
+            new TableCell<>() {
+              private final Button setBudget = new Button("Set budget");
+              private final Button rename = new Button("Rename");
+              private final Button remove = new Button("Remove");
+              private final HBox buttons = new HBox(6, setBudget, rename, remove);
+
+              {
+                buttons.getStyleClass().add("row-actions");
+                setBudget.getStyleClass().add(TABLE_ACTION_STYLE_CLASS);
+                rename.getStyleClass().add(TABLE_ACTION_STYLE_CLASS);
+                remove.getStyleClass().addAll(TABLE_ACTION_STYLE_CLASS, "danger-action");
+                setBudget.setOnAction(event -> saveBudget(row().category(), table));
+                rename.setOnAction(event -> renameCategory(row().category(), table));
+                remove.setOnAction(event -> removeCategory(row().category(), table));
+              }
+
+              @Override
+              protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : buttons);
+              }
+
+              private CategorySummary row() {
+                return getTableView().getItems().get(getIndex());
+              }
+            });
+    return actions;
+  }
+
+  private void refreshBudgetTable(TableView<CategorySummary> table) {
+    table.setItems(
+        FXCollections.observableArrayList(service.dashboard(selectedMonth).categorySummaries()));
+  }
+
+  private String categoryName(Long categoryId) {
+    if (categoryId == null) {
+      return "—";
+    }
+    return service.categories().stream()
+        .filter(category -> category.id() == categoryId)
+        .map(Category::name)
+        .findFirst()
+        .orElse("Removed category");
   }
 
   private String stateText(CategorySummary summary) {
@@ -419,11 +535,74 @@ final class BudgetBotWindow {
   }
 
   private java.util.Optional<String> textPrompt(String title, String prompt, String value) {
-    javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog(value);
+    Dialog<String> dialog = new Dialog<>();
     dialog.setTitle(title);
     dialog.setHeaderText(null);
-    dialog.setContentText(prompt);
+    ButtonType save = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+    dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
+    TextField input = new TextField(value);
+    Label validation = validationMessage();
+    dialog.getDialogPane().setContent(new VBox(8, new Label(prompt), input, validation));
+    Button saveButton = (Button) dialog.getDialogPane().lookupButton(save);
+    saveButton.addEventFilter(
+        ActionEvent.ACTION,
+        event -> {
+          if (input.getText().trim().isEmpty()) {
+            validation.setText(prompt + " cannot be empty.");
+            event.consume();
+          }
+        });
+    dialog.setResultConverter(button -> button == save ? input.getText().trim() : null);
     return dialog.showAndWait();
+  }
+
+  private java.util.Optional<BigDecimal> moneyPrompt(
+      String title, String prompt, boolean zeroAllowed) {
+    Dialog<BigDecimal> dialog = new Dialog<>();
+    dialog.setTitle(title);
+    dialog.setHeaderText(null);
+    ButtonType save = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+    dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
+    TextField input = new TextField();
+    input.setPromptText("0.00");
+    Label validation = validationMessage();
+    dialog.getDialogPane().setContent(new VBox(8, new Label(prompt), input, validation));
+    Button saveButton = (Button) dialog.getDialogPane().lookupButton(save);
+    saveButton.addEventFilter(
+        ActionEvent.ACTION,
+        event -> {
+          try {
+            parseMoney(input.getText(), prompt, zeroAllowed);
+            validation.setText("");
+          } catch (IllegalArgumentException exception) {
+            validation.setText(exception.getMessage());
+            event.consume();
+          }
+        });
+    dialog.setResultConverter(
+        button -> button == save ? parseMoney(input.getText(), prompt, zeroAllowed) : null);
+    return dialog.showAndWait();
+  }
+
+  private BigDecimal parseMoney(String input, String label, boolean zeroAllowed) {
+    String normalized = input == null ? "" : input.trim();
+    if (!normalized.matches("\\d+(?:\\.\\d{1,2})?")) {
+      throw new IllegalArgumentException(
+          label + " must be a number with at most two decimal places.");
+    }
+    BigDecimal amount = new BigDecimal(normalized);
+    if (zeroAllowed ? amount.signum() < 0 : amount.signum() <= 0) {
+      throw new IllegalArgumentException(
+          label + (zeroAllowed ? " must be zero or greater." : " must be greater than zero."));
+    }
+    return amount;
+  }
+
+  private Label validationMessage() {
+    Label validation = new Label();
+    validation.getStyleClass().add("validation-message");
+    validation.setWrapText(true);
+    return validation;
   }
 
   private boolean confirm(String title, String message) {
@@ -452,26 +631,6 @@ final class BudgetBotWindow {
     protected void updateItem(Category item, boolean empty) {
       super.updateItem(item, empty);
       setText(empty || item == null ? null : item.name());
-    }
-  }
-
-  private final class TransactionCell extends javafx.scene.control.ListCell<Transaction> {
-    @Override
-    protected void updateItem(Transaction item, boolean empty) {
-      super.updateItem(item, empty);
-      if (empty || item == null) {
-        setText(null);
-      } else {
-        String sign = item.type() == TransactionType.INCOME ? "+" : "-";
-        String description = item.description().isBlank() ? item.type().name() : item.description();
-        setText(
-            item.date().format(DATE_FORMAT)
-                + "  "
-                + description
-                + "  "
-                + sign
-                + money(item.amount()));
-      }
     }
   }
 }

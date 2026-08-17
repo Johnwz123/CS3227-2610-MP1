@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 /** Applies BudgetBot's validation and monthly calculations. */
 public final class BudgetService {
   private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
+  private static final int MAXIMUM_MONEY_SCALE = 2;
   private static final int MINIMUM_CATEGORY_COUNT = 1;
 
   private final BudgetDatabase database;
@@ -104,6 +105,7 @@ public final class BudgetService {
     if (amount == null || amount.signum() < 0) {
       throw new IllegalArgumentException("Monthly budget must be zero or greater.");
     }
+    validateMoneyScale(amount, "Monthly budget");
     database.setMonthlyBaseAmount(categoryId, month, amount);
   }
 
@@ -159,8 +161,10 @@ public final class BudgetService {
       throw new IllegalArgumentException("Select income or expense.");
     }
     if (amount == null || amount.signum() <= 0) {
-      throw new IllegalArgumentException("Amount must be greater than zero.");
+      throw new IllegalArgumentException(
+          "Amount must be greater than zero with at most two decimal places.");
     }
+    validateMoneyScale(amount, "Amount");
     if (date == null) {
       throw new IllegalArgumentException("Select a transaction date.");
     }
@@ -181,5 +185,11 @@ public final class BudgetService {
       throw new IllegalArgumentException(label + " cannot be empty.");
     }
     return value.trim();
+  }
+
+  private void validateMoneyScale(BigDecimal amount, String label) {
+    if (amount.scale() > MAXIMUM_MONEY_SCALE) {
+      throw new IllegalArgumentException(label + " can have at most two decimal places.");
+    }
   }
 }

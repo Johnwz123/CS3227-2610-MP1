@@ -133,6 +133,9 @@ class BudgetServiceTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> service.setMonthlyBudget(category("Health").id(), month, new BigDecimal("-1")));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> service.setMonthlyBudget(category("Health").id(), month, new BigDecimal("1.001")));
   }
 
   @Test
@@ -193,6 +196,11 @@ class BudgetServiceTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> service.addTransaction(TransactionType.INCOME, BigDecimal.ONE, null, "", null));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            service.addTransaction(
+                TransactionType.INCOME, new BigDecimal("1.001"), month.atDay(1), "", null));
   }
 
   @Test
