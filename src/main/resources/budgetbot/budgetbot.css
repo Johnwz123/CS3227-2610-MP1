@@ -92,6 +92,23 @@
   -fx-padding: 0 12 0 12;
 }
 
+.data-table .income-value,
+.data-table .normal-remaining {
+  -fx-text-fill: #17803d;
+  -fx-font-weight: bold;
+}
+
+.data-table .expense-value,
+.data-table .over-budget-remaining {
+  -fx-text-fill: #bd3030;
+  -fx-font-weight: bold;
+}
+
+.data-table .warning-remaining {
+  -fx-text-fill: #c77a16;
+  -fx-font-weight: bold;
+}
+
 .button {
   -fx-background-color: #2463b5;
   -fx-background-radius: 7;

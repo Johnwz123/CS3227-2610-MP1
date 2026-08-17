@@ -47,6 +47,11 @@ final class BudgetBotWindow {
   private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("d MMM uuuu");
   private static final String AMOUNT_LABEL = "Amount";
   private static final String TABLE_ACTION_STYLE_CLASS = "table-action";
+  private static final String INCOME_VALUE_STYLE_CLASS = "income-value";
+  private static final String EXPENSE_VALUE_STYLE_CLASS = "expense-value";
+  private static final String NORMAL_REMAINING_STYLE_CLASS = "normal-remaining";
+  private static final String WARNING_REMAINING_STYLE_CLASS = "warning-remaining";
+  private static final String OVER_BUDGET_REMAINING_STYLE_CLASS = "over-budget-remaining";
 
   private final Stage stage;
   private final BudgetService service;
@@ -378,7 +383,9 @@ final class BudgetBotWindow {
     table
         .getColumns()
         .add(textColumn("Date", transaction -> transaction.date().format(DATE_FORMAT), 120));
-    table.getColumns().add(textColumn("Type", transaction -> transaction.type().name(), 100));
+    table
+        .getColumns()
+        .add(transactionValueColumn("Type", transaction -> transaction.type().name(), 100));
     table
         .getColumns()
         .add(
@@ -395,7 +402,7 @@ final class BudgetBotWindow {
     table
         .getColumns()
         .add(
-            textColumn(
+            transactionValueColumn(
                 AMOUNT_LABEL,
                 transaction ->
                     (transaction.type() == TransactionType.INCOME ? "+" : "-")
@@ -413,8 +420,7 @@ final class BudgetBotWindow {
     table.getColumns().add(textColumn("Category", summary -> summary.category().name(), 180));
     table.getColumns().add(textColumn("Available", summary -> money(summary.available()), 130));
     table.getColumns().add(textColumn("Spent", summary -> money(summary.spent()), 130));
-    table.getColumns().add(textColumn("Remaining", summary -> money(summary.remaining()), 130));
-    table.getColumns().add(textColumn("Status", this::stateText, 220));
+    table.getColumns().add(remainingColumn());
     if (includeActions) {
       table.getColumns().add(budgetActionsColumn(table));
     }
@@ -435,6 +441,60 @@ final class BudgetBotWindow {
     column.setCellValueFactory(data -> new ReadOnlyStringWrapper(value.apply(data.getValue())));
     column.setPrefWidth(width);
     return column;
+  }
+
+  private TableColumn<Transaction, String> transactionValueColumn(
+      String title, java.util.function.Function<Transaction, String> value, double width) {
+    TableColumn<Transaction, String> column = textColumn(title, value, width);
+    column.setCellFactory(
+        ignored ->
+            new TableCell<>() {
+              @Override
+              protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty ? null : item);
+                getStyleClass().removeAll(INCOME_VALUE_STYLE_CLASS, EXPENSE_VALUE_STYLE_CLASS);
+                if (!empty && getTableRow().getItem() != null) {
+                  getStyleClass()
+                      .add(
+                          getTableRow().getItem().type() == TransactionType.INCOME
+                              ? INCOME_VALUE_STYLE_CLASS
+                              : EXPENSE_VALUE_STYLE_CLASS);
+                }
+              }
+            });
+    return column;
+  }
+
+  private TableColumn<CategorySummary, String> remainingColumn() {
+    TableColumn<CategorySummary, String> column =
+        textColumn("Remaining", summary -> money(summary.remaining()), 130);
+    column.setCellFactory(
+        ignored ->
+            new TableCell<>() {
+              @Override
+              protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty ? null : item);
+                getStyleClass()
+                    .removeAll(
+                        NORMAL_REMAINING_STYLE_CLASS,
+                        WARNING_REMAINING_STYLE_CLASS,
+                        OVER_BUDGET_REMAINING_STYLE_CLASS);
+                if (!empty && getTableRow().getItem() != null) {
+                  getStyleClass().add(remainingStyleClass(getTableRow().getItem()));
+                }
+              }
+            });
+    return column;
+  }
+
+  private String remainingStyleClass(CategorySummary summary) {
+    return switch (summary.state()) {
+      case NORMAL -> NORMAL_REMAINING_STYLE_CLASS;
+      case WARNING -> WARNING_REMAINING_STYLE_CLASS;
+      case OVER_BUDGET -> OVER_BUDGET_REMAINING_STYLE_CLASS;
+    };
   }
 
   private TableColumn<Transaction, Void> transactionActionsColumn(TableView<Transaction> table) {
@@ -516,14 +576,6 @@ final class BudgetBotWindow {
         .map(Category::name)
         .findFirst()
         .orElse("Removed category");
-  }
-
-  private String stateText(CategorySummary summary) {
-    return switch (summary.state()) {
-      case NORMAL -> money(summary.remaining()) + " remaining";
-      case WARNING -> "Warning: " + money(summary.remaining()) + " remaining";
-      case OVER_BUDGET -> "Over budget by " + money(summary.remaining().abs());
-    };
   }
 
   private String money(BigDecimal amount) {
