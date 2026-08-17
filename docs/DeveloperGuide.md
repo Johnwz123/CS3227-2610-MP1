@@ -36,4 +36,4 @@ slug: /DeveloperGuide
 Install JDK 25 and use the Gradle Wrapper; no system Gradle installation is required.
 Run `gradlew.bat check` on Windows (or `./gradlew check` on macOS/Linux) before opening a pull request.
 
-For the documentation site, install Node.js 20 or later, run `npm install` in `website`, then run `npm start`.
+For the documentation site, install Node.js 24 or later, run `npm install` in `website`, then run `npm start`.

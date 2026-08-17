@@ -4,7 +4,7 @@
 
 1. Install JDK 25 and clone the repository.
 2. Run `gradlew.bat check` on Windows, or `./gradlew check` on macOS/Linux.
-3. For documentation changes, install Node.js 20 or later and run `npm install` in `website`.
+3. For documentation changes, install Node.js 24 or later and run `npm install` in `website`.
 
 Always use the Gradle Wrapper supplied by this repository. Do not rely on a locally installed Gradle version.
 

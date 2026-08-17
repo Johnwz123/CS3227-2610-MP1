@@ -10,7 +10,7 @@ Coursework project for CS3227.
 ## Prerequisites
 
 - JDK 25
-- Node.js 20 or later (only for the documentation site)
+- Node.js 24 or later (only for the documentation site)
 
 ## Common commands
 
