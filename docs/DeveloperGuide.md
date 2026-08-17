@@ -38,6 +38,10 @@ slug: /DeveloperGuide
 Install JDK 25 and use the Gradle Wrapper; no system Gradle installation is required.
 Run `gradlew.bat check` on Windows (or `./gradlew check` on macOS/Linux) before opening a pull request.
 
+For same-repository pull requests, CI also posts one updated JaCoCo instruction-coverage comment and
+adds the same summary to the workflow run. Pull requests from forks retain the workflow summary and
+downloadable report artifact, but do not receive a comment because their workflow token is read-only.
+
 For the documentation site, install Node.js 24 or later, run `npm install` in `website`, then run `npm start`.
 
 ## System Overview

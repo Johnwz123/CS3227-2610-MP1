@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   verify:
@@ -36,6 +37,65 @@ jobs:
 
       - name: Verify Java code and quality gates
         run: ./gradlew check jacocoTestReport javadoc
+
+      - name: Summarize JaCoCo coverage
+        id: coverage
+        run: |
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as element_tree
+
+          report = element_tree.parse('build/reports/jacoco/test/jacocoTestReport.xml').getroot()
+          instruction_counter = next(
+              counter for counter in report.findall('counter')
+              if counter.attrib['type'] == 'INSTRUCTION'
+          )
+          covered = int(instruction_counter.attrib['covered'])
+          missed = int(instruction_counter.attrib['missed'])
+          total = covered + missed
+          percentage = covered / total * 100 if total else 0
+          summary = (
+              '## JaCoCo code coverage\n\n'
+              f'**Instruction coverage:** {percentage:.1f}% '
+              f'({covered} covered / {total} total)\n'
+          )
+
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as step_summary:
+              step_summary.write(summary)
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write(f'summary<<EOF\n{summary}EOF\n')
+          PY
+
+      - name: Publish pull-request coverage comment
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v9
+        env:
+          COVERAGE_SUMMARY: ${{ steps.coverage.outputs.summary }}
+        with:
+          script: |
+            const marker = '<!-- budgetbot-jacoco-coverage -->';
+            const body = `${marker}\n${process.env.COVERAGE_SUMMARY}`;
+            const parameters = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            };
+            const { data: comments } = await github.rest.issues.listComments(parameters);
+            const existingComment = comments.find(
+              comment => comment.user.type === 'Bot' && comment.body.includes(marker),
+            );
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                ...parameters,
+                comment_id: existingComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({ ...parameters, body });
+            }
 
       - name: Install documentation dependencies
         working-directory: website
