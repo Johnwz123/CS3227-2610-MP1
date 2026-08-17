@@ -31,6 +31,9 @@ jobs:
           cache: npm
           cache-dependency-path: website/package-lock.json
 
+      - name: Make Gradle Wrapper executable
+        run: chmod +x gradlew
+
       - name: Verify Java code and quality gates
         run: ./gradlew check jacocoTestReport javadoc
 
