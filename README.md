@@ -3,9 +3,14 @@ id: overview
 slug: /
 ---
 
-# CS3227-2610-MP1
+# BudgetBot
 
-Coursework project for CS3227.
+BudgetBot is a local JavaFX desktop budget tracker for a single user. It records income and
+expenses, tracks fixed monthly category budgets, and highlights categories approaching or exceeding
+their limits.
+
+Budget data is stored locally at `~/.budgetbot/budgetbot.db`. BudgetBot does not require an account,
+network connection, or external financial service.
 
 ## Prerequisites
 
@@ -14,7 +19,7 @@ Coursework project for CS3227.
 
 ## Common commands
 
-On Windows, use `gradlew.bat`; on macOS/Linux, use `./gradlew`.
+On Windows, use `gradlew.bat`. On macOS/Linux, use `./gradlew`.
 
 ```text
 gradlew.bat run                 # Run the application
@@ -34,3 +39,10 @@ npm start
 
 The published guides are built from [DeveloperGuide.md](docs/DeveloperGuide.md) and
 [UserGuide.md](docs/UserGuide.md).
+
+## Highlights
+
+- Seeded expense categories that can be added, renamed, or removed after reassignment.
+- Income transactions that affect overall balance and categorized expenses that affect budgets.
+- Fixed monthly category budgets with optional, global rollover.
+- A configurable global spending-warning threshold (80% by default) and over-budget alerts.

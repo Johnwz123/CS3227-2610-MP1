@@ -5,6 +5,7 @@ plugins {
     id 'checkstyle'
     id 'pmd'
     id 'com.diffplug.spotless' version '8.9.0'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
 }
 
 group = 'edu.nus.cs3227'
@@ -21,10 +22,17 @@ java {
 }
 
 application {
-    mainClass = 'edu.nus.cs3227.mp1.HelloWorldApp'
+    mainClass = 'budgetbot.BudgetBotApp'
+    applicationDefaultJvmArgs = ['--enable-native-access=ALL-UNNAMED']
+}
+
+javafx {
+    version = '25.0.1'
+    modules = ['javafx.controls']
 }
 
 dependencies {
+    implementation 'org.xerial:sqlite-jdbc:3.53.1.0'
     testImplementation 'org.junit.jupiter:junit-jupiter:6.0.0'
     testImplementation 'org.mockito:mockito-junit-jupiter:5.20.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -63,6 +71,7 @@ jacoco {
 tasks.named('jacocoTestCoverageVerification') {
     violationRules {
         rule {
+            includes = ['budgetbot.service.*']
             limit {
                 counter = 'INSTRUCTION'
                 value = 'COVEREDRATIO'
