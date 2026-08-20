@@ -19,7 +19,11 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 
-/** SQLite-backed storage for BudgetBot's single local budget. */
+/**
+ * SQLite-backed storage for BudgetBot's single local budget.
+ *
+ * <p>Each instance owns one database connection and must be closed when no longer needed.
+ */
 public final class BudgetDatabase implements AutoCloseable {
   private static final List<String> DEFAULT_CATEGORIES =
       List.of(
@@ -35,7 +39,14 @@ public final class BudgetDatabase implements AutoCloseable {
 
   private final Connection connection;
 
-  /** Opens and initializes a database at the supplied path. */
+  /**
+   * Opens a database, creates its parent directories and schema when absent, and seeds the default
+   * categories.
+   *
+   * @param databasePath location of the SQLite database file
+   * @throws BudgetPersistenceException if the directory cannot be created or the database cannot be
+   *     opened or initialized
+   */
   public BudgetDatabase(Path databasePath) {
     try {
       Path parent = databasePath.toAbsolutePath().getParent();
@@ -51,7 +62,12 @@ public final class BudgetDatabase implements AutoCloseable {
     }
   }
 
-  /** Returns all active expense categories. */
+  /**
+   * Returns all active expense categories in case-insensitive name order.
+   *
+   * @return the categories currently available for expense transactions
+   * @throws BudgetPersistenceException if the categories cannot be read
+   */
   public List<Category> categories() {
     List<Category> categories = new ArrayList<>();
     String sql = "SELECT id, name FROM categories ORDER BY name COLLATE NOCASE";
@@ -66,7 +82,13 @@ public final class BudgetDatabase implements AutoCloseable {
     }
   }
 
-  /** Adds an expense category and returns its generated identifier. */
+  /**
+   * Adds an expense category.
+   *
+   * @param name category name to store
+   * @return the generated category identifier
+   * @throws BudgetPersistenceException if the category cannot be added or no identifier is returned
+   */
   public long addCategory(String name) {
     String sql = "INSERT INTO categories(name) VALUES (?)";
     try (PreparedStatement statement =
@@ -84,12 +106,26 @@ public final class BudgetDatabase implements AutoCloseable {
     }
   }
 
-  /** Renames a category without changing transactions that refer to it. */
+  /**
+   * Renames a category without changing transactions that refer to it.
+   *
+   * @param categoryId identifier of the category to rename
+   * @param name replacement category name
+   * @throws BudgetPersistenceException if the category cannot be updated
+   */
   public void renameCategory(long categoryId, String name) {
     executeUpdate("UPDATE categories SET name = ? WHERE id = ?", name, categoryId);
   }
 
-  /** Reassigns a category's expenses and then removes the category. */
+  /**
+   * Reassigns a category's expenses and then removes the category as one transaction.
+   *
+   * @param categoryId identifier of the category to remove
+   * @param replacementCategoryId identifier of the category that receives the removed category's
+   *     expenses
+   * @throws BudgetPersistenceException if both identifiers are the same or the reassignment cannot
+   *     be completed
+   */
   public void removeCategory(long categoryId, long replacementCategoryId) {
     if (categoryId == replacementCategoryId) {
       throw new BudgetPersistenceException("Choose a different category for reassignment.");
@@ -110,7 +146,12 @@ public final class BudgetDatabase implements AutoCloseable {
     }
   }
 
-  /** Returns the configured global settings. */
+  /**
+   * Returns the configured global settings.
+   *
+   * @return the budget settings shared by subsequently created monthly budgets
+   * @throws BudgetPersistenceException if the settings cannot be read or are missing
+   */
   public BudgetSettings settings() {
     String sql = "SELECT rollover_enabled, warning_threshold FROM settings WHERE id = 1";
     try (PreparedStatement statement = connection.prepareStatement(sql);
@@ -124,7 +165,12 @@ public final class BudgetDatabase implements AutoCloseable {
     }
   }
 
-  /** Saves the settings that will be copied into subsequently started months. */
+  /**
+   * Saves the settings that will be copied into subsequently started months.
+   *
+   * @param settings settings to persist
+   * @throws BudgetPersistenceException if the settings cannot be saved
+   */
   public void saveSettings(BudgetSettings settings) {
     executeUpdate(
         "UPDATE settings SET rollover_enabled = ?, warning_threshold = ? WHERE id = 1",
@@ -132,7 +178,13 @@ public final class BudgetDatabase implements AutoCloseable {
         settings.warningThreshold());
   }
 
-  /** Returns transactions in the selected calendar month, newest first. */
+  /**
+   * Returns transactions in the selected calendar month, newest first.
+   *
+   * @param month calendar month to query
+   * @return transactions in {@code month}, ordered by date and then identifier descending
+   * @throws BudgetPersistenceException if the transactions cannot be read
+   */
   public List<Transaction> transactions(YearMonth month) {
     String sql =
         "SELECT id, type, amount, transaction_date, description, category_id "
@@ -147,7 +199,13 @@ public final class BudgetDatabase implements AutoCloseable {
     }
   }
 
-  /** Returns the newest transactions across all months. */
+  /**
+   * Returns the newest transactions across all months.
+   *
+   * @param limit maximum number of transactions to return
+   * @return at most {@code limit} transactions, ordered by date and then identifier descending
+   * @throws BudgetPersistenceException if the transactions cannot be read
+   */
   public List<Transaction> recentTransactions(int limit) {
     String sql =
         "SELECT id, type, amount, transaction_date, description, category_id "
@@ -160,7 +218,14 @@ public final class BudgetDatabase implements AutoCloseable {
     }
   }
 
-  /** Stores a new transaction and returns its generated identifier. */
+  /**
+   * Stores a new transaction.
+   *
+   * @param transaction transaction to store
+   * @return the generated transaction identifier
+   * @throws BudgetPersistenceException if the transaction cannot be added or no identifier is
+   *     returned
+   */
   public long addTransaction(Transaction transaction) {
     String sql =
         "INSERT INTO transactions(type, amount, transaction_date, description, category_id) "
@@ -180,7 +245,12 @@ public final class BudgetDatabase implements AutoCloseable {
     }
   }
 
-  /** Updates an existing transaction. */
+  /**
+   * Updates an existing transaction.
+   *
+   * @param transaction replacement transaction data, including the identifier to update
+   * @throws BudgetPersistenceException if the transaction cannot be updated
+   */
   public void updateTransaction(Transaction transaction) {
     String sql =
         "UPDATE transactions SET type = ?, amount = ?, transaction_date = ?, description = ?, "
@@ -194,12 +264,23 @@ public final class BudgetDatabase implements AutoCloseable {
     }
   }
 
-  /** Deletes a transaction by identifier. */
+  /**
+   * Deletes a transaction by identifier.
+   *
+   * @param transactionId identifier of the transaction to delete
+   * @throws BudgetPersistenceException if the transaction cannot be deleted
+   */
   public void deleteTransaction(long transactionId) {
     executeUpdate("DELETE FROM transactions WHERE id = ?", transactionId);
   }
 
-  /** Creates any missing category snapshots for a month and returns them. */
+  /**
+   * Creates any missing category snapshots for a month and returns all of that month's budgets.
+   *
+   * @param month calendar month to read or initialize
+   * @return the category budget snapshots for {@code month}
+   * @throws BudgetPersistenceException if the snapshots cannot be created or read
+   */
   public List<MonthlyBudget> monthlyBudgets(YearMonth month) {
     ensureMonthlyBudgets(month);
     List<MonthlyBudget> budgets = new ArrayList<>();
@@ -219,7 +300,15 @@ public final class BudgetDatabase implements AutoCloseable {
     }
   }
 
-  /** Changes the base amount in the selected month's category snapshot. */
+  /**
+   * Changes the base amount in the selected month's category snapshot, creating missing snapshots
+   * first.
+   *
+   * @param categoryId identifier of the category to update
+   * @param month calendar month of the budget snapshot
+   * @param amount replacement base amount
+   * @throws BudgetPersistenceException if the snapshot cannot be created or updated
+   */
   public void setMonthlyBaseAmount(long categoryId, YearMonth month, BigDecimal amount) {
     ensureMonthlyBudgets(month);
     executeUpdate(
@@ -229,7 +318,14 @@ public final class BudgetDatabase implements AutoCloseable {
         month.toString());
   }
 
-  /** Returns the total expenses in one category for a selected month. */
+  /**
+   * Returns the total expenses in one category for a selected month.
+   *
+   * @param categoryId identifier of the expense category
+   * @param month calendar month to query
+   * @return the sum of matching expense amounts, or zero when there are no matching transactions
+   * @throws BudgetPersistenceException if the total cannot be calculated
+   */
   public BigDecimal expenseTotal(long categoryId, YearMonth month) {
     String sql =
         "SELECT amount FROM transactions WHERE type = 'EXPENSE' AND category_id = ? AND transaction_date >= ? "
@@ -246,7 +342,12 @@ public final class BudgetDatabase implements AutoCloseable {
     }
   }
 
-  /** Returns all-time income minus expenses. */
+  /**
+   * Returns all-time income minus expenses.
+   *
+   * @return the sum of all income amounts less the sum of all expense amounts
+   * @throws BudgetPersistenceException if the balance cannot be calculated
+   */
   public BigDecimal overallBalance() {
     String sql = "SELECT type, amount FROM transactions";
     try (PreparedStatement statement = connection.prepareStatement(sql);
@@ -265,6 +366,11 @@ public final class BudgetDatabase implements AutoCloseable {
     }
   }
 
+  /**
+   * Closes the database connection owned by this instance.
+   *
+   * @throws BudgetPersistenceException if the connection cannot be closed
+   */
   @Override
   public void close() {
     try {

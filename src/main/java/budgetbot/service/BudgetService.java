@@ -9,6 +9,7 @@ import budgetbot.model.MonthlyBudget;
 import budgetbot.model.Transaction;
 import budgetbot.model.TransactionType;
 import budgetbot.persistence.BudgetDatabase;
+import budgetbot.persistence.BudgetPersistenceException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.YearMonth;
@@ -18,7 +19,12 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** Applies BudgetBot's validation and monthly calculations. */
+/**
+ * Applies BudgetBot's input validation and monthly calculations.
+ *
+ * <p>This service is the application-facing boundary for persistence operations: it validates input
+ * before delegating to the database and derives dashboard values from stored data.
+ */
 public final class BudgetService {
   private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
   private static final int MAXIMUM_MONEY_SCALE = 2;
@@ -26,27 +32,54 @@ public final class BudgetService {
 
   private final BudgetDatabase database;
 
-  /** Creates a service backed by the supplied database. */
+  /**
+   * Creates a service backed by the supplied database.
+   *
+   * @param database database used to store and retrieve budget data
+   */
   public BudgetService(BudgetDatabase database) {
     this.database = database;
   }
 
-  /** Returns the user-maintained expense categories. */
+  /**
+   * Returns the user-maintained expense categories.
+   *
+   * @return categories available for expense transactions
+   * @throws BudgetPersistenceException if the categories cannot be read
+   */
   public List<Category> categories() {
     return database.categories();
   }
 
-  /** Returns a transaction list for a calendar month. */
+  /**
+   * Returns transactions for a calendar month.
+   *
+   * @param month calendar month to query
+   * @return transactions in {@code month}, newest first
+   * @throws BudgetPersistenceException if the transactions cannot be read
+   */
   public List<Transaction> transactions(YearMonth month) {
     return database.transactions(month);
   }
 
-  /** Returns the active global settings. */
+  /**
+   * Returns the active global settings.
+   *
+   * @return settings used when a monthly budget snapshot is first created
+   * @throws BudgetPersistenceException if the settings cannot be read
+   */
   public BudgetSettings settings() {
     return database.settings();
   }
 
-  /** Saves settings that will be used for subsequently started months. */
+  /**
+   * Saves settings that will be used for subsequently started months.
+   *
+   * @param rolloverEnabled whether unspent amounts should carry into the next month's snapshot
+   * @param warningThreshold percentage at which a budget should enter the warning state
+   * @throws IllegalArgumentException if {@code warningThreshold} is outside 1 through 99
+   * @throws BudgetPersistenceException if the settings cannot be saved
+   */
   public void saveSettings(boolean rolloverEnabled, int warningThreshold) {
     if (warningThreshold < 1 || warningThreshold > 99) {
       throw new IllegalArgumentException("Warning threshold must be between 1 and 99 percent.");
@@ -54,17 +87,38 @@ public final class BudgetService {
     database.saveSettings(new BudgetSettings(rolloverEnabled, warningThreshold));
   }
 
-  /** Adds a non-empty category. */
+  /**
+   * Adds a non-empty category.
+   *
+   * @param name category name to add
+   * @return the generated category identifier
+   * @throws IllegalArgumentException if {@code name} is blank
+   * @throws BudgetPersistenceException if the category cannot be added
+   */
   public long addCategory(String name) {
     return database.addCategory(requiredName(name, "Category name"));
   }
 
-  /** Renames a category. */
+  /**
+   * Renames a category.
+   *
+   * @param categoryId identifier of the category to rename
+   * @param name replacement category name
+   * @throws IllegalArgumentException if {@code name} is blank
+   * @throws BudgetPersistenceException if the category cannot be updated
+   */
   public void renameCategory(long categoryId, String name) {
     database.renameCategory(categoryId, requiredName(name, "Category name"));
   }
 
-  /** Reassigns referenced expenses before removing a category. */
+  /**
+   * Reassigns referenced expenses before removing a category.
+   *
+   * @param categoryId identifier of the category to remove
+   * @param replacementCategoryId identifier of the category that receives its expenses
+   * @throws IllegalArgumentException if removal would leave the budget without an expense category
+   * @throws BudgetPersistenceException if the category cannot be reassigned and removed
+   */
   public void removeCategory(long categoryId, long replacementCategoryId) {
     if (categories().size() <= MINIMUM_CATEGORY_COUNT) {
       throw new IllegalArgumentException("BudgetBot must keep at least one expense category.");
@@ -72,7 +126,18 @@ public final class BudgetService {
     database.removeCategory(categoryId, replacementCategoryId);
   }
 
-  /** Adds a valid income or expense transaction. */
+  /**
+   * Adds a valid income or expense transaction.
+   *
+   * @param type whether the transaction is income or an expense
+   * @param amount positive monetary amount with at most two decimal places
+   * @param date date on which the transaction occurred
+   * @param description optional user-entered description
+   * @param categoryId required expense-category identifier, or {@code null} for income
+   * @return the generated transaction identifier
+   * @throws IllegalArgumentException if a required value is missing or the transaction is invalid
+   * @throws BudgetPersistenceException if the transaction cannot be stored
+   */
   public long addTransaction(
       TransactionType type,
       BigDecimal amount,
@@ -83,7 +148,13 @@ public final class BudgetService {
     return database.addTransaction(transaction);
   }
 
-  /** Updates a valid income or expense transaction. */
+  /**
+   * Updates a valid income or expense transaction.
+   *
+   * @param transaction replacement transaction data, including the identifier to update
+   * @throws IllegalArgumentException if a required value is missing or the transaction is invalid
+   * @throws BudgetPersistenceException if the transaction cannot be updated
+   */
   public void updateTransaction(Transaction transaction) {
     database.updateTransaction(
         validateTransaction(
@@ -95,12 +166,26 @@ public final class BudgetService {
             transaction.categoryId()));
   }
 
-  /** Deletes a transaction. */
+  /**
+   * Deletes a transaction.
+   *
+   * @param transactionId identifier of the transaction to delete
+   * @throws BudgetPersistenceException if the transaction cannot be deleted
+   */
   public void deleteTransaction(long transactionId) {
     database.deleteTransaction(transactionId);
   }
 
-  /** Sets a non-negative base amount for a category in the selected month. */
+  /**
+   * Sets a non-negative base amount for a category in the selected month.
+   *
+   * @param categoryId identifier of the category to update
+   * @param month calendar month of the budget snapshot
+   * @param amount replacement base amount with at most two decimal places
+   * @throws IllegalArgumentException if {@code amount} is negative, null, or has more than two
+   *     decimal places
+   * @throws BudgetPersistenceException if the budget snapshot cannot be updated
+   */
   public void setMonthlyBudget(long categoryId, YearMonth month, BigDecimal amount) {
     if (amount == null || amount.signum() < 0) {
       throw new IllegalArgumentException("Monthly budget must be zero or greater.");
@@ -109,7 +194,13 @@ public final class BudgetService {
     database.setMonthlyBaseAmount(categoryId, month, amount);
   }
 
-  /** Calculates all dashboard figures for the selected month. */
+  /**
+   * Calculates all dashboard figures for the selected month.
+   *
+   * @param month calendar month represented by the dashboard
+   * @return the overall balance, recent transactions, and per-category summaries for {@code month}
+   * @throws BudgetPersistenceException if the required budget data cannot be read
+   */
   public DashboardSnapshot dashboard(YearMonth month) {
     Map<Long, MonthlyBudget> budgets =
         database.monthlyBudgets(month).stream()

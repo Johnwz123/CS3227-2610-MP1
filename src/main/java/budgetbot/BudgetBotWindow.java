@@ -41,7 +41,11 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-/** Builds and coordinates the BudgetBot JavaFX views. */
+/**
+ * Builds and coordinates the BudgetBot JavaFX views.
+ *
+ * <p>The window retains the selected month while users switch between its views.
+ */
 final class BudgetBotWindow {
   private static final DateTimeFormatter MONTH_FORMAT = DateTimeFormatter.ofPattern("MMMM uuuu");
   private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("d MMM uuuu");
@@ -58,12 +62,22 @@ final class BudgetBotWindow {
   private final BorderPane layout = new BorderPane();
   private YearMonth selectedMonth = YearMonth.now();
 
+  /**
+   * Creates the controller for the application's primary stage.
+   *
+   * @param stage stage that displays the BudgetBot scene
+   * @param service service that supplies validated budget data and commands
+   */
   BudgetBotWindow(Stage stage, BudgetService service) {
     this.stage = stage;
     this.service = service;
   }
 
-  /** Shows the main window. */
+  /**
+   * Shows the main window with the dashboard selected.
+   *
+   * @throws BudgetPersistenceException if the dashboard data cannot be loaded
+   */
   void show() {
     layout.setLeft(navigation());
     layout.setCenter(dashboardView());
