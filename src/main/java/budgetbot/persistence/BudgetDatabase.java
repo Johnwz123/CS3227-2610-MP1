@@ -122,6 +122,16 @@ public final class BudgetDatabase implements AutoCloseable {
   }
 
   /**
+   * Determines whether the database contains at least one transaction.
+   *
+   * @return whether any transaction has been stored
+   * @throws BudgetPersistenceException if transactions cannot be queried
+   */
+  public boolean hasTransactions() {
+    return transactionRepository.hasAny();
+  }
+
+  /**
    * Stores a transaction.
    *
    * @param transaction transaction to store

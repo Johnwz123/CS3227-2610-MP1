@@ -47,6 +47,41 @@ gradlew.bat javadoc             # Generate API documentation
 gradlew.bat openJavadoc         # Generate and open API documentation
 ```
 
+## Resetting and seeding local data
+
+The database tools create a repeatable local state for testing and demonstrations. Reset is
+destructive: it permanently deletes the selected database and its SQLite sidecar files, then recreates
+the normal first-start database with all tables, the default settings, and default categories. Seed
+adds a fixed current-month demo budget, income, and expenses; run reset before seeding again.
+
+On Windows PowerShell:
+
+```powershell
+.\scripts\reset-database.ps1
+.\scripts\seed-demo-data.ps1
+```
+
+Type `RESET` when prompted. For a non-interactive reset, use `-Force`; both scripts accept
+`-DatabasePath` to work with a disposable database instead of the normal local one:
+
+```powershell
+.\scripts\reset-database.ps1 -Force -DatabasePath "$env:TEMP\budgetbot-demo.db"
+.\scripts\seed-demo-data.ps1 -DatabasePath "$env:TEMP\budgetbot-demo.db"
+```
+
+On macOS/Linux, invoke the POSIX-shell launchers with `sh` (so no executable-bit setup is needed):
+
+```sh
+sh scripts/reset-database.sh
+sh scripts/seed-demo-data.sh
+```
+
+Enter `RESET` when prompted by the reset script. Pass one optional database path to either command to
+use a disposable target, for example `sh scripts/reset-database.sh /tmp/budgetbot-demo.db`.
+
+When no path is supplied, every launcher targets `~/.budgetbot/budgetbot.db`. Close BudgetBot before
+running either operation so SQLite does not hold the database open.
+
 To run the documentation site locally:
 
 ```text

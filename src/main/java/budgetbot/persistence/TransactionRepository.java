@@ -34,6 +34,15 @@ final class TransactionRepository {
     }
   }
 
+  boolean hasAny() {
+    try (Statement statement = connection.createStatement();
+        ResultSet resultSet = statement.executeQuery("SELECT EXISTS(SELECT 1 FROM transactions)")) {
+      return resultSet.next() && resultSet.getInt(1) == 1;
+    } catch (SQLException exception) {
+      throw PersistenceSupport.failure("check for transactions", exception);
+    }
+  }
+
   long add(Transaction t) {
     try (PreparedStatement s =
         connection.prepareStatement(

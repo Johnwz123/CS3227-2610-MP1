@@ -55,3 +55,38 @@ The database initializer is repeatable and seeds default expense categories only
 Monthly budget snapshots retain the base amount and warning threshold used for that month, so later
 threshold changes do not rewrite historical dashboard calculations. The unreleased schema has no data
 migration path; delete a database created by an earlier development build before running this version.
+
+## Database reset and demo data
+
+Use the repository scripts to prepare a clean SQLite database for tests or demonstrations. The reset
+operation is irreversible: it removes only the selected database file and its matching SQLite sidecars,
+then opens `BudgetDatabase` to recreate the schema, default settings, and default categories. The seed
+operation creates a fixed current-month scenario with category budgets plus income and expense
+transactions. It refuses to add a second scenario to a database that already contains transactions.
+
+Close the application first. On Windows PowerShell, run:
+
+```powershell
+.\scripts\reset-database.ps1
+.\scripts\seed-demo-data.ps1
+```
+
+The reset launcher requires the literal `RESET` confirmation, or its `-Force` switch for automated
+use. Both launchers accept `-DatabasePath`, for example:
+
+```powershell
+.\scripts\reset-database.ps1 -Force -DatabasePath "$env:TEMP\budgetbot-demo.db"
+.\scripts\seed-demo-data.ps1 -DatabasePath "$env:TEMP\budgetbot-demo.db"
+```
+
+On macOS/Linux, run the POSIX launchers through `sh`:
+
+```sh
+sh scripts/reset-database.sh
+sh scripts/seed-demo-data.sh
+```
+
+Reset prompts for `RESET`; supply one optional database path as the sole argument to target a
+disposable file, for example `sh scripts/reset-database.sh /tmp/budgetbot-demo.db`. Without an
+explicit path, the scripts use the application's default `~/.budgetbot/budgetbot.db` location. The
+launchers delegate to the Gradle Wrapper and Java tool, so no system SQLite client is required.

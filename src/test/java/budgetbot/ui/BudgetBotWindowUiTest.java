@@ -11,6 +11,7 @@ import budgetbot.service.BudgetService;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.YearMonth;
+import java.util.concurrent.TimeUnit;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -56,7 +57,7 @@ class BudgetBotWindowUiTest {
   }
 
   @Test
-  void navigatesViewsAndChangesTheSelectedMonth(FxRobot robot) {
+  void navigatesViewsAndChangesTheSelectedMonth(FxRobot robot) throws Exception {
     robot.clickOn("Transactions");
     WaitForAsyncUtils.waitForFxEvents();
     assertTrue(robot.lookup("Add transaction").tryQuery().isPresent());
@@ -65,6 +66,8 @@ class BudgetBotWindowUiTest {
     assertTrue(robot.lookup("Add transaction").tryQuery().isPresent());
     robot.clickOn("Budgets");
     WaitForAsyncUtils.waitForFxEvents();
+    WaitForAsyncUtils.waitFor(
+        5, TimeUnit.SECONDS, () -> robot.lookup("Add").tryQuery().isPresent());
     assertTrue(robot.lookup("Add").tryQuery().isPresent());
     robot.clickOn("Settings");
     WaitForAsyncUtils.waitForFxEvents();

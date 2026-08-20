@@ -10,6 +10,6 @@ class BudgetBotAppTest {
   void usesAStableDatabasePathInsideTheUserHomeDirectory() {
     Path expected = Path.of(System.getProperty("user.home"), ".budgetbot", "budgetbot.db");
 
-    assertEquals(expected, BudgetBotApp.defaultDatabasePath());
+    assertEquals(expected, DatabasePaths.defaultDatabasePath());
   }
 }

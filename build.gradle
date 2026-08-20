@@ -97,6 +97,30 @@ tasks.named('jacocoTestReport') {
     }
 }
 
+tasks.register('databaseTool', JavaExec) {
+    group = 'application'
+    description = 'Runs BudgetBot database reset and demo-data seed operations.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'budgetbot.tools.DatabaseTool'
+
+    doFirst {
+        def command = providers.gradleProperty('databaseToolCommand').orNull
+        if (command == null || command.isBlank()) {
+            throw new GradleException('Set -PdatabaseToolCommand=reset or -PdatabaseToolCommand=seed.')
+        }
+        def toolArguments = [command]
+        if (providers.gradleProperty('databaseToolForce').orNull == 'true') {
+            toolArguments.add('--force')
+        }
+        def databasePath = providers.gradleProperty('databasePath').orNull
+        if (databasePath != null && !databasePath.isBlank()) {
+            toolArguments.add('--database')
+            toolArguments.add(databasePath)
+        }
+        setArgs(toolArguments)
+    }
+}
+
 def browserCommand = { File document ->
     def operatingSystem = System.getProperty('os.name').toLowerCase(Locale.ROOT)
     if (operatingSystem.contains('windows')) {
