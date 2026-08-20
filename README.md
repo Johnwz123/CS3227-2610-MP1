@@ -17,6 +17,22 @@ network connection, or external financial service.
 - JDK 25
 - Node.js 24 or later (only for the documentation site)
 
+## Project layout
+
+```text
+src/main/java/budgetbot/
+  BudgetBotApp.java                 application entry point
+  model/                            immutable domain records and enums
+  persistence/                      SQLite persistence
+  service/                          business rules and use cases
+  ui/                               JavaFX user interface
+    BudgetBotWindow.java            window shell and navigation
+    ViewCoordinator.java            selected month and active-view rendering
+    dialogs/                        transaction, category, and budget dialogs
+    tables/                         transaction and budget-summary table factories
+    views/                          dashboard, transaction, budget, and settings views
+```
+
 ## Common commands
 
 On Windows, use `gradlew.bat`. On macOS/Linux, use `./gradlew`.

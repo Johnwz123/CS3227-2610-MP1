@@ -1,4 +1,4 @@
-package budgetbot;
+package budgetbot.ui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -86,7 +86,6 @@ class BudgetBotWindowUiTest {
           category.setValue(groceries);
         });
     robot.clickOn(button(dialog, "Save"));
-
     assertTrue(
         service.transactions(YearMonth.now()).stream()
             .anyMatch(item -> item.description().equals("Coffee beans")));
@@ -98,7 +97,6 @@ class BudgetBotWindowUiTest {
     TextField editDescription = description;
     robot.interact(() -> editDescription.setText("Edited market"));
     robot.clickOn(button(dialog, "Save"));
-
     assertTrue(
         service.transactions(YearMonth.now()).stream()
             .anyMatch(item -> item.description().equals("Edited market")));
@@ -113,7 +111,6 @@ class BudgetBotWindowUiTest {
     robot.clickOn("Transactions");
     robot.clickOn("Add transaction");
     robot.clickOn(button(dialog(robot), "Save"));
-
     assertTrue(
         robot
             .lookup("Amount must be a number with at most two decimal places.")

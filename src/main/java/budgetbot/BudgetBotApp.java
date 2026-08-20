@@ -2,6 +2,7 @@ package budgetbot;
 
 import budgetbot.persistence.BudgetDatabase;
 import budgetbot.service.BudgetService;
+import budgetbot.ui.BudgetBotWindow;
 import java.nio.file.Path;
 import javafx.application.Application;
 import javafx.stage.Stage;

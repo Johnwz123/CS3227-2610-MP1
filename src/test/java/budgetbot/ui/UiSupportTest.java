@@ -1,4 +1,4 @@
-package budgetbot;
+package budgetbot.ui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -6,26 +6,23 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import budgetbot.model.BudgetState;
 import budgetbot.model.Category;
 import budgetbot.model.CategorySummary;
+import budgetbot.ui.tables.BudgetSummaryTableFactory;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 
-class BudgetBotWindowTest {
+class UiSupportTest {
   @Test
   void parsesPositiveAmountsAndAllowsZeroOnlyWhenRequested() {
-    assertEquals(new BigDecimal("12.50"), BudgetBotWindow.parseMoney(" 12.50 ", "Amount", false));
-    assertEquals(BigDecimal.ZERO, BudgetBotWindow.parseMoney("0", "Budget", true));
+    assertEquals(new BigDecimal("12.50"), MoneyInput.parse(" 12.50 ", "Amount", false));
+    assertEquals(BigDecimal.ZERO, MoneyInput.parse("0", "Budget", true));
   }
 
   @Test
   void rejectsInvalidOrDisallowedMonetaryInput() {
-    assertThrows(
-        IllegalArgumentException.class, () -> BudgetBotWindow.parseMoney("1.001", "Amount", false));
-    assertThrows(
-        IllegalArgumentException.class, () -> BudgetBotWindow.parseMoney("-1", "Amount", true));
-    assertThrows(
-        IllegalArgumentException.class, () -> BudgetBotWindow.parseMoney("0", "Amount", false));
-    assertThrows(
-        IllegalArgumentException.class, () -> BudgetBotWindow.parseMoney(null, "Amount", false));
+    assertThrows(IllegalArgumentException.class, () -> MoneyInput.parse("1.001", "Amount", false));
+    assertThrows(IllegalArgumentException.class, () -> MoneyInput.parse("-1", "Amount", true));
+    assertThrows(IllegalArgumentException.class, () -> MoneyInput.parse("0", "Amount", false));
+    assertThrows(IllegalArgumentException.class, () -> MoneyInput.parse(null, "Amount", false));
   }
 
   @Test
@@ -52,9 +49,10 @@ class BudgetBotWindowTest {
             BigDecimal.ONE.negate(),
             BudgetState.OVER_BUDGET);
 
-    assertEquals("$12.35", BudgetBotWindow.money(new BigDecimal("12.345")));
-    assertEquals("normal-remaining", BudgetBotWindow.remainingStyleClass(normal));
-    assertEquals("warning-remaining", BudgetBotWindow.remainingStyleClass(warning));
-    assertEquals("over-budget-remaining", BudgetBotWindow.remainingStyleClass(overBudget));
+    assertEquals("$12.35", MoneyInput.format(new BigDecimal("12.345")));
+    assertEquals("normal-remaining", BudgetSummaryTableFactory.remainingStyleClass(normal));
+    assertEquals("warning-remaining", BudgetSummaryTableFactory.remainingStyleClass(warning));
+    assertEquals(
+        "over-budget-remaining", BudgetSummaryTableFactory.remainingStyleClass(overBudget));
   }
 }
