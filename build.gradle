@@ -36,7 +36,7 @@ javafx {
 dependencies {
     implementation 'org.xerial:sqlite-jdbc:3.53.1.0'
     testImplementation 'org.junit.jupiter:junit-jupiter:6.0.0'
-    testImplementation 'org.mockito:mockito-junit-jupiter:5.20.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.23.0'
     testImplementation 'org.testfx:testfx-junit5:4.0.18'
     testImplementation 'org.hamcrest:hamcrest:2.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
