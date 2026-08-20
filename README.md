@@ -26,6 +26,7 @@ gradlew.bat run                 # Run the application
 gradlew.bat check               # Test and run all Java quality checks
 gradlew.bat spotlessApply       # Format Java sources
 gradlew.bat jacocoTestReport    # Generate the coverage report
+gradlew.bat openJacocoReport    # Generate and open the coverage report (Windows)
 gradlew.bat javadoc             # Generate API documentation
 ```
 

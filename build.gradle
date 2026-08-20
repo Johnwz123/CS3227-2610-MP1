@@ -1,3 +1,5 @@
+import java.util.Locale
+
 plugins {
     id 'java'
     id 'application'
@@ -90,4 +92,21 @@ tasks.named('jacocoTestReport') {
         xml.required = true
         html.required = true
     }
+}
+
+tasks.register('openJacocoReport', Exec) {
+    group = 'verification'
+    description = 'Generates and opens the JaCoCo HTML coverage report in the default browser (Windows only).'
+    dependsOn tasks.named('jacocoTestReport')
+
+    def reportFile = layout.buildDirectory.file('reports/jacoco/test/html/index.html').get().asFile
+    doFirst {
+        if (!reportFile.isFile()) {
+            throw new GradleException("JaCoCo HTML report was not generated: ${reportFile}")
+        }
+        if (!System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
+            throw new GradleException('openJacocoReport is only supported on Windows.')
+        }
+    }
+    commandLine 'cmd', '/c', "start \"\" \"${reportFile.absolutePath}\""
 }
