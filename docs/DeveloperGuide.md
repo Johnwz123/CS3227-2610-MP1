@@ -52,5 +52,6 @@ database is `~/.budgetbot/budgetbot.db`; tests create an isolated temporary data
 are represented with `BigDecimal`, never floating point.
 
 The database initializer is repeatable and seeds default expense categories only for a new database.
-Monthly budget snapshots retain the base amount, rollover policy, and warning threshold used for that
-month, so later setting changes do not rewrite historical dashboard calculations.
+Monthly budget snapshots retain the base amount and warning threshold used for that month, so later
+threshold changes do not rewrite historical dashboard calculations. The unreleased schema has no data
+migration path; delete a database created by an earlier development build before running this version.

@@ -8,24 +8,17 @@ import java.time.YearMonth;
  *
  * @param categoryId persistent category identifier
  * @param month month represented by the snapshot
- * @param baseAmount configured monthly amount before carryover
- * @param carryover amount carried forward from the preceding month
- * @param rolloverEnabled whether rollover was enabled when the snapshot was created
+ * @param baseAmount configured monthly amount
  * @param warningThreshold warning percentage copied into the snapshot when it was created
  */
 public record MonthlyBudget(
-    long categoryId,
-    YearMonth month,
-    BigDecimal baseAmount,
-    BigDecimal carryover,
-    boolean rolloverEnabled,
-    int warningThreshold) {
+    long categoryId, YearMonth month, BigDecimal baseAmount, int warningThreshold) {
   /**
    * Returns the amount available to spend during the month.
    *
-   * @return the base amount plus carryover
+   * @return the fixed monthly base amount
    */
   public BigDecimal availableAmount() {
-    return baseAmount.add(carryover);
+    return baseAmount;
   }
 }

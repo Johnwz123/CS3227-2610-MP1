@@ -40,8 +40,7 @@ public final class BudgetDatabase implements AutoCloseable {
       settingsRepository = new SettingsRepository(connection);
       transactionRepository = new TransactionRepository(connection);
       monthlyBudgetRepository =
-          new MonthlyBudgetRepository(
-              connection, categoryRepository, settingsRepository, transactionRepository);
+          new MonthlyBudgetRepository(connection, categoryRepository, settingsRepository);
     } catch (SQLException | java.io.IOException exception) {
       throw new BudgetPersistenceException(
           "BudgetBot could not open its local database.", exception);
@@ -123,17 +122,6 @@ public final class BudgetDatabase implements AutoCloseable {
   }
 
   /**
-   * Lists the most recent transactions across all months.
-   *
-   * @param limit maximum number of transactions to return
-   * @return recent transactions
-   * @throws BudgetPersistenceException if transactions cannot be read
-   */
-  public List<Transaction> recentTransactions(int limit) {
-    return transactionRepository.findRecent(limit);
-  }
-
-  /**
    * Stores a transaction.
    *
    * @param transaction transaction to store
@@ -200,13 +188,14 @@ public final class BudgetDatabase implements AutoCloseable {
   }
 
   /**
-   * Calculates income minus expenses across every stored transaction.
+   * Calculates income minus expenses for a calendar month.
    *
-   * @return overall balance
-   * @throws BudgetPersistenceException if the balance cannot be calculated
+   * @param month month to total
+   * @return selected-month net cash flow
+   * @throws BudgetPersistenceException if the total cannot be calculated
    */
-  public BigDecimal overallBalance() {
-    return transactionRepository.overallBalance();
+  public BigDecimal netCashFlow(YearMonth month) {
+    return transactionRepository.netCashFlow(month);
   }
 
   /**

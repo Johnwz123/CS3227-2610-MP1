@@ -36,7 +36,7 @@ final class ViewCoordinator {
     TransactionDialog transactionDialog = new TransactionDialog(service);
     CategoryDialog categoryDialog = new CategoryDialog(service);
     BudgetDialog budgetDialog = new BudgetDialog();
-    dashboardView = new DashboardView(service, transactionTables, budgetTables, this::changeMonth);
+    dashboardView = new DashboardView(service, budgetTables, this::changeMonth);
     transactionsView =
         new TransactionsView(service, transactionTables, transactionDialog, this::changeMonth);
     budgetsView =

@@ -75,16 +75,15 @@ public final class BudgetService {
   /**
    * Saves settings that will be used for subsequently started months.
    *
-   * @param rolloverEnabled whether unspent amounts should carry into the next month's snapshot
    * @param warningThreshold percentage at which a budget should enter the warning state
    * @throws IllegalArgumentException if {@code warningThreshold} is outside 1 through 99
    * @throws BudgetPersistenceException if the settings cannot be saved
    */
-  public void saveSettings(boolean rolloverEnabled, int warningThreshold) {
+  public void saveSettings(int warningThreshold) {
     if (warningThreshold < 1 || warningThreshold > 99) {
       throw new IllegalArgumentException("Warning threshold must be between 1 and 99 percent.");
     }
-    database.saveSettings(new BudgetSettings(rolloverEnabled, warningThreshold));
+    database.saveSettings(new BudgetSettings(warningThreshold));
   }
 
   /**
@@ -198,7 +197,7 @@ public final class BudgetService {
    * Calculates all dashboard figures for the selected month.
    *
    * @param month calendar month represented by the dashboard
-   * @return the overall balance, recent transactions, and per-category summaries for {@code month}
+   * @return the selected-month net cash flow and per-category summaries for {@code month}
    * @throws BudgetPersistenceException if the required budget data cannot be read
    */
   public DashboardSnapshot dashboard(YearMonth month) {
@@ -212,8 +211,7 @@ public final class BudgetService {
                 Comparator.comparing(
                     summary -> summary.category().name(), String.CASE_INSENSITIVE_ORDER))
             .toList();
-    return new DashboardSnapshot(
-        month, database.overallBalance(), database.recentTransactions(8), summaries);
+    return new DashboardSnapshot(month, database.netCashFlow(month), summaries);
   }
 
   private CategorySummary summary(Category category, MonthlyBudget budget, YearMonth month) {

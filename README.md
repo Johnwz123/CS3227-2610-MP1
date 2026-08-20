@@ -61,6 +61,6 @@ The published guides are built from [DeveloperGuide.md](docs/DeveloperGuide.md) 
 ## Highlights
 
 - Seeded expense categories that can be added, renamed, or removed after reassignment.
-- Income transactions that affect overall balance and categorized expenses that affect budgets.
-- Fixed monthly category budgets with optional, global rollover.
+- Income and categorized expense transactions that determine selected-month net cash flow.
+- Fixed monthly category budgets that reset to their configured base amount each month.
 - A configurable global spending-warning threshold (80% by default) and over-budget alerts.

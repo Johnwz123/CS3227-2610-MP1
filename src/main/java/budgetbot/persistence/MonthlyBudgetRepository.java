@@ -12,29 +12,24 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Persists monthly category snapshots, base amounts, and rollover values. */
+/** Persists monthly category snapshots and base amounts. */
 final class MonthlyBudgetRepository {
   private final Connection connection;
   private final CategoryRepository categories;
   private final SettingsRepository settings;
-  private final TransactionRepository transactions;
 
   MonthlyBudgetRepository(
-      Connection connection,
-      CategoryRepository categories,
-      SettingsRepository settings,
-      TransactionRepository transactions) {
+      Connection connection, CategoryRepository categories, SettingsRepository settings) {
     this.connection = connection;
     this.categories = categories;
     this.settings = settings;
-    this.transactions = transactions;
   }
 
   List<MonthlyBudget> findOrCreate(YearMonth month) {
     ensure(month);
     try (PreparedStatement s =
         connection.prepareStatement(
-            "SELECT category_id, month, base_amount, carryover, rollover_enabled, warning_threshold FROM monthly_budgets WHERE month = ? ORDER BY category_id")) {
+            "SELECT category_id, month, base_amount, warning_threshold FROM monthly_budgets WHERE month = ? ORDER BY category_id")) {
       s.setString(1, month.toString());
       try (ResultSet r = s.executeQuery()) {
         List<MonthlyBudget> list = new ArrayList<>();
@@ -74,19 +69,13 @@ final class MonthlyBudgetRepository {
     BudgetSettings config = settings.load();
     MonthlyBudget prior = find(id, month.minusMonths(1));
     BigDecimal base = prior == null ? latestBaseAmount(id, month) : prior.baseAmount();
-    BigDecimal carryover =
-        config.rolloverEnabled() && prior != null
-            ? prior.availableAmount().subtract(transactions.expenseTotal(id, month.minusMonths(1)))
-            : BigDecimal.ZERO;
     try (PreparedStatement s =
         connection.prepareStatement(
-            "INSERT INTO monthly_budgets(category_id, month, base_amount, carryover, rollover_enabled, warning_threshold) VALUES (?, ?, ?, ?, ?, ?)")) {
+            "INSERT INTO monthly_budgets(category_id, month, base_amount, warning_threshold) VALUES (?, ?, ?, ?)")) {
       s.setLong(1, id);
       s.setString(2, month.toString());
       s.setString(3, base.toPlainString());
-      s.setString(4, carryover.toPlainString());
-      s.setInt(5, config.rolloverEnabled() ? 1 : 0);
-      s.setInt(6, config.warningThreshold());
+      s.setInt(4, config.warningThreshold());
       s.executeUpdate();
     } catch (SQLException e) {
       throw PersistenceSupport.failure("create a monthly budget", e);
@@ -96,7 +85,7 @@ final class MonthlyBudgetRepository {
   private MonthlyBudget find(long id, YearMonth month) {
     try (PreparedStatement s =
         connection.prepareStatement(
-            "SELECT category_id, month, base_amount, carryover, rollover_enabled, warning_threshold FROM monthly_budgets WHERE category_id = ? AND month = ?")) {
+            "SELECT category_id, month, base_amount, warning_threshold FROM monthly_budgets WHERE category_id = ? AND month = ?")) {
       s.setLong(1, id);
       s.setString(2, month.toString());
       try (ResultSet r = s.executeQuery()) {
@@ -126,8 +115,6 @@ final class MonthlyBudgetRepository {
         r.getLong("category_id"),
         YearMonth.parse(r.getString("month")),
         new BigDecimal(r.getString("base_amount")),
-        new BigDecimal(r.getString("carryover")),
-        r.getInt("rollover_enabled") == 1,
         r.getInt("warning_threshold"));
   }
 }
