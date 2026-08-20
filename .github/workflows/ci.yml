@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   verify:
@@ -35,7 +36,45 @@ jobs:
         run: chmod +x gradlew
 
       - name: Verify Java code and quality gates
-        run: ./gradlew check jacocoTestReport javadoc
+        run: xvfb-run --auto-servernum ./gradlew check jacocoTestReport javadoc
+
+      - name: Summarize JaCoCo coverage
+        id: coverage
+        run: |
+          python3 scripts/summarize_jacoco.py \
+            --step-summary "$GITHUB_STEP_SUMMARY" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Publish pull-request coverage comment
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v9
+        env:
+          COVERAGE_SUMMARY: ${{ steps.coverage.outputs.summary }}
+        with:
+          script: |
+            const marker = '<!-- budgetbot-jacoco-coverage -->';
+            const body = `${marker}\n${process.env.COVERAGE_SUMMARY}`;
+            const parameters = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            };
+            const { data: comments } = await github.rest.issues.listComments(parameters);
+            const existingComment = comments.find(
+              comment => comment.user.type === 'Bot' && comment.body.includes(marker),
+            );
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                ...parameters,
+                comment_id: existingComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({ ...parameters, body });
+            }
 
       - name: Install documentation dependencies
         working-directory: website
@@ -46,7 +85,7 @@ jobs:
         run: npm run build
 
       - name: Upload reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: quality-reports
           path: build/reports/

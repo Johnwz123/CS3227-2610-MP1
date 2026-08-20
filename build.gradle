@@ -1,3 +1,5 @@
+import java.util.Locale
+
 plugins {
     id 'java'
     id 'application'
@@ -5,6 +7,7 @@ plugins {
     id 'checkstyle'
     id 'pmd'
     id 'com.diffplug.spotless' version '8.9.0'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
 }
 
 group = 'edu.nus.cs3227'
@@ -21,12 +24,21 @@ java {
 }
 
 application {
-    mainClass = 'edu.nus.cs3227.mp1.HelloWorldApp'
+    mainClass = 'budgetbot.BudgetBotApp'
+    applicationDefaultJvmArgs = ['--enable-native-access=ALL-UNNAMED']
+}
+
+javafx {
+    version = '25.0.1'
+    modules = ['javafx.controls']
 }
 
 dependencies {
+    implementation 'org.xerial:sqlite-jdbc:3.53.1.0'
     testImplementation 'org.junit.jupiter:junit-jupiter:6.0.0'
     testImplementation 'org.mockito:mockito-junit-jupiter:5.20.0'
+    testImplementation 'org.testfx:testfx-junit5:4.0.18'
+    testImplementation 'org.hamcrest:hamcrest:2.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -63,6 +75,7 @@ jacoco {
 tasks.named('jacocoTestCoverageVerification') {
     violationRules {
         rule {
+            element = 'BUNDLE'
             limit {
                 counter = 'INSTRUCTION'
                 value = 'COVEREDRATIO'
@@ -77,8 +90,51 @@ tasks.named('check') {
 }
 
 tasks.named('jacocoTestReport') {
+    dependsOn tasks.named('test')
     reports {
         xml.required = true
         html.required = true
     }
+}
+
+def browserCommand = { File document ->
+    def operatingSystem = System.getProperty('os.name').toLowerCase(Locale.ROOT)
+    if (operatingSystem.contains('windows')) {
+        return ['cmd', '/c', "start \"\" \"${document.absolutePath}\""]
+    }
+    if (operatingSystem.contains('mac')) {
+        return ['open', document.absolutePath]
+    }
+    if (operatingSystem.contains('linux')) {
+        return ['xdg-open', document.absolutePath]
+    }
+    throw new GradleException("Opening generated documentation is not supported on ${System.getProperty('os.name')}.")
+}
+
+tasks.register('openJacocoReport', Exec) {
+    group = 'verification'
+    description = 'Generates and opens the JaCoCo HTML coverage report in the default browser.'
+    dependsOn tasks.named('jacocoTestReport')
+
+    def reportFile = layout.buildDirectory.file('reports/jacoco/test/html/index.html').get().asFile
+    doFirst {
+        if (!reportFile.isFile()) {
+            throw new GradleException("JaCoCo HTML report was not generated: ${reportFile}")
+        }
+    }
+    commandLine(*browserCommand(reportFile))
+}
+
+tasks.register('openJavadoc', Exec) {
+    group = 'documentation'
+    description = 'Generates and opens the Javadoc API reference in the default browser.'
+    dependsOn tasks.named('javadoc')
+
+    def javadocIndex = layout.buildDirectory.file('docs/javadoc/index.html').get().asFile
+    doFirst {
+        if (!javadocIndex.isFile()) {
+            throw new GradleException("Javadoc API reference was not generated: ${javadocIndex}")
+        }
+    }
+    commandLine(*browserCommand(javadocIndex))
 }
