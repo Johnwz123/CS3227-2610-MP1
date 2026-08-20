@@ -88,6 +88,7 @@ tasks.named('check') {
 }
 
 tasks.named('jacocoTestReport') {
+    dependsOn tasks.named('test')
     reports {
         xml.required = true
         html.required = true
