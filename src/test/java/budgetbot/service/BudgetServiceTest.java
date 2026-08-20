@@ -246,6 +246,24 @@ class BudgetServiceTest {
         () -> service.removeCategory(finalCategory.id(), finalCategory.id()));
   }
 
+  @Test
+  void dashboardLimitsRecentTransactionsAndSortsCategorySummaries() {
+    for (int day = 1; day <= 9; day++) {
+      service.addTransaction(
+          TransactionType.INCOME, BigDecimal.ONE, month.atDay(day), "Income " + day, null);
+    }
+
+    var snapshot = service.dashboard(month);
+    var categoryNames =
+        snapshot.categorySummaries().stream().map(summary -> summary.category().name()).toList();
+
+    assertEquals(8, snapshot.recentTransactions().size());
+    assertEquals("Income 9", snapshot.recentTransactions().getFirst().description());
+    assertEquals("Income 2", snapshot.recentTransactions().getLast().description());
+    assertEquals(
+        categoryNames.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList(), categoryNames);
+  }
+
   private Category category(String name) {
     return service.categories().stream()
         .filter(category -> category.name().equals(name))

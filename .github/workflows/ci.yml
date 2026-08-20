@@ -36,7 +36,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Verify Java code and quality gates
-        run: ./gradlew check jacocoTestReport javadoc
+        run: xvfb-run --auto-servernum ./gradlew check jacocoTestReport javadoc
 
       - name: Summarize JaCoCo coverage
         id: coverage

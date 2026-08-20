@@ -51,7 +51,12 @@ public final class BudgetBotApp extends Application {
     launch(args);
   }
 
-  private Path defaultDatabasePath() {
+  /**
+   * Returns the default location of the local SQLite database.
+   *
+   * @return the BudgetBot database inside the current user's home directory
+   */
+  static Path defaultDatabasePath() {
     return Path.of(System.getProperty("user.home"), ".budgetbot", "budgetbot.db");
   }
 }

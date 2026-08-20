@@ -503,7 +503,7 @@ final class BudgetBotWindow {
     return column;
   }
 
-  private String remainingStyleClass(CategorySummary summary) {
+  static String remainingStyleClass(CategorySummary summary) {
     return switch (summary.state()) {
       case NORMAL -> NORMAL_REMAINING_STYLE_CLASS;
       case WARNING -> WARNING_REMAINING_STYLE_CLASS;
@@ -592,7 +592,7 @@ final class BudgetBotWindow {
         .orElse("Removed category");
   }
 
-  private String money(BigDecimal amount) {
+  static String money(BigDecimal amount) {
     return "$" + amount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString();
   }
 
@@ -650,7 +650,16 @@ final class BudgetBotWindow {
     return dialog.showAndWait();
   }
 
-  private BigDecimal parseMoney(String input, String label, boolean zeroAllowed) {
+  /**
+   * Parses a non-negative or positive monetary value entered in the UI.
+   *
+   * @param input text entered by the user
+   * @param label field name to include in validation messages
+   * @param zeroAllowed whether zero is permitted
+   * @return the parsed amount with at most two decimal places
+   * @throws IllegalArgumentException if the input is not a permitted monetary value
+   */
+  static BigDecimal parseMoney(String input, String label, boolean zeroAllowed) {
     String normalized = input == null ? "" : input.trim();
     if (!normalized.matches("\\d+(?:\\.\\d{1,2})?")) {
       throw new IllegalArgumentException(
