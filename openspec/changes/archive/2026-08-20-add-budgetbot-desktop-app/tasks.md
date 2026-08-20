@@ -32,4 +32,4 @@
 - [x] 5.1 Add unit and repository tests for transaction, category, budget, rollover, and warning-threshold scenarios.
 - [x] 5.2 Add service-level tests for dashboard calculations and historical-month stability.
 - [x] 5.3 Update README and user/developer guides for BudgetBot setup, run, data storage, and workflows.
-- [ ] 5.4 Run `gradlew.bat check --no-daemon` and manually verify the principal JavaFX workflows.
+- [x] 5.4 Run `gradlew.bat check --no-daemon` and manually verify the principal JavaFX workflows.
