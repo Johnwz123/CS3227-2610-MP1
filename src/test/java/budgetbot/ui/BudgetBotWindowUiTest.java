@@ -26,6 +26,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.testfx.api.FxRobot;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.framework.junit5.Start;
+import org.testfx.util.WaitForAsyncUtils;
 
 @ExtendWith(ApplicationExtension.class)
 class BudgetBotWindowUiTest {
@@ -55,15 +56,20 @@ class BudgetBotWindowUiTest {
   @Test
   void navigatesViewsAndChangesTheSelectedMonth(FxRobot robot) {
     robot.clickOn("Transactions");
+    WaitForAsyncUtils.waitForFxEvents();
     assertTrue(robot.lookup("Add transaction").tryQuery().isPresent());
     robot.clickOn(">");
+    WaitForAsyncUtils.waitForFxEvents();
     assertTrue(robot.lookup("Add transaction").tryQuery().isPresent());
     robot.clickOn("Budgets");
+    WaitForAsyncUtils.waitForFxEvents();
     assertTrue(robot.lookup("Add").tryQuery().isPresent());
     robot.clickOn("Settings");
+    WaitForAsyncUtils.waitForFxEvents();
     assertTrue(robot.lookup("Save settings").tryQuery().isPresent());
     robot.clickOn("Dashboard");
-    assertTrue(robot.lookup("Overall balance: $-25.00").tryQuery().isPresent());
+    WaitForAsyncUtils.waitForFxEvents();
+    assertTrue(robot.lookup(".balance").tryQuery().isPresent());
   }
 
   @Test

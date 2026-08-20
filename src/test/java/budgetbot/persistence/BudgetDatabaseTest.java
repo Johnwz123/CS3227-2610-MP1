@@ -44,6 +44,20 @@ class BudgetDatabaseTest {
   }
 
   @Test
+  void reopensWithoutReseedingOrLosingRepositoryData() {
+    BudgetDatabase storage = openDatabase();
+    long categoryId = storage.addCategory("Travel");
+    storage.saveSettings(new BudgetSettings(true, 65));
+    storage.close();
+
+    database = new BudgetDatabase(temporaryDirectory.resolve("budgetbot.db"));
+
+    assertEquals(10, database.categories().size());
+    assertTrue(database.categories().stream().anyMatch(category -> category.id() == categoryId));
+    assertEquals(new BudgetSettings(true, 65), database.settings());
+  }
+
+  @Test
   void managesCategoriesAndReassignsTransactionsBeforeRemoval() {
     BudgetDatabase storage = openDatabase();
     Category groceries = category("Groceries");
