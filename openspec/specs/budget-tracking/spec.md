@@ -3,9 +3,7 @@
 ## Purpose
 
 Provide a local JavaFX workspace for recording cash flow, managing monthly expense budgets, and receiving clear budget-status feedback.
-
 ## Requirements
-
 ### Requirement: Local desktop budget workspace
 
 The system SHALL provide BudgetBot as a JavaFX desktop application for one local user and SHALL persist its budget data locally without requiring an account or an external service.
@@ -18,24 +16,13 @@ The system SHALL provide BudgetBot as a JavaFX desktop application for one local
 
 ### Requirement: Monthly category budgets and global rollover
 
-The system SHALL let the user set a fixed monthly base amount for each expense category. The system SHALL provide one global rollover setting that is disabled by default.
+The system SHALL let the user set a fixed monthly base amount for each expense category. Each category's available amount for a calendar month SHALL equal its fixed monthly base amount; the system SHALL NOT provide a rollover preference or carry unspent or overspent amounts into another month.
 
-#### Scenario: Rollover is disabled
+#### Scenario: A new month starts after any prior-month spending
 
-- **WHEN** a new month begins while rollover is disabled
-- **THEN** each category's available amount equals its fixed monthly base amount
-
-#### Scenario: Rollover is enabled
-
-- **WHEN** a new month begins while rollover is enabled
-- **THEN** each category's available amount includes its prior month's remaining amount
-- **AND** a negative prior remaining amount reduces the new month's available amount
-
-#### Scenario: User changes rollover preference
-
-- **WHEN** the user changes the global rollover setting during a started month
-- **THEN** the new setting applies from the next unstarted month
-- **AND** calculations for started months remain unchanged
+- **WHEN** the user views a category budget in a new calendar month after the category was under or over its budget in the preceding month
+- **THEN** the category's available amount equals its fixed monthly base amount
+- **AND** no amount from the preceding month changes that availability
 
 ### Requirement: Configurable expense categories
 
@@ -54,23 +41,29 @@ The system SHALL initialize a new budget with sensible default expense categorie
 
 ### Requirement: Income and expense transactions
 
-The system SHALL let the user create, edit, and delete income and expense transactions. Income SHALL affect only overall balance; expenses SHALL require a category and count toward that category's monthly spending.
+The system SHALL let the user create, edit, and delete income and expense transactions. Income SHALL contribute positively to net cash flow for its transaction month; expenses SHALL require a category, contribute negatively to net cash flow for their transaction month, and count toward that category's monthly spending.
 
 #### Scenario: User records income
 
 - **WHEN** the user saves a valid income transaction
-- **THEN** the overall balance increases by its amount
+- **THEN** net cash flow for the transaction's calendar month increases by its amount
 - **AND** no category budget spending changes
 
 #### Scenario: User records an expense
 
 - **WHEN** the user saves a valid expense transaction with a category and date
-- **THEN** the overall balance decreases by its amount
+- **THEN** net cash flow for the transaction's calendar month decreases by its amount
 - **AND** the expense increases the matching category's spending for that calendar month
 
 ### Requirement: Dashboard budget feedback
 
-The system SHALL show overall balance, recent transactions, and per-category budget progress for the selected month. It SHALL warn at a globally configurable threshold that defaults to 80 percent and SHALL alert at 100 percent or more of a category's available amount.
+The system SHALL show selected-month net cash flow and per-category budget progress for the selected month. It SHALL NOT show overall balance or recent transactions on the dashboard. It SHALL warn at a globally configurable threshold that defaults to 80 percent and SHALL alert at 100 percent or more of a category's available amount.
+
+#### Scenario: Dashboard shows selected-month net cash flow
+
+- **WHEN** the user views the dashboard for a selected calendar month
+- **THEN** it displays that month's income minus that month's expenses as Net cash flow
+- **AND** it does not display an all-time overall balance or a Recent activity section
 
 #### Scenario: Category reaches warning threshold
 
