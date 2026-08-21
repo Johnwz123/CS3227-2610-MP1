@@ -29,6 +29,7 @@ jobs:
             echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
           else
             echo "is-release=false" >> "$GITHUB_OUTPUT"
+          fi
 
   package:
     name: Package ${{ matrix.platform }}
