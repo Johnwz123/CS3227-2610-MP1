@@ -1,6 +1,7 @@
 package budgetbot.ui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import budgetbot.model.Category;
@@ -10,11 +11,13 @@ import budgetbot.service.BudgetService;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.YearMonth;
+import java.util.concurrent.TimeUnit;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.DialogPane;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
@@ -54,7 +57,7 @@ class BudgetBotWindowUiTest {
   }
 
   @Test
-  void navigatesViewsAndChangesTheSelectedMonth(FxRobot robot) {
+  void navigatesViewsAndChangesTheSelectedMonth(FxRobot robot) throws Exception {
     robot.clickOn("Transactions");
     WaitForAsyncUtils.waitForFxEvents();
     assertTrue(robot.lookup("Add transaction").tryQuery().isPresent());
@@ -63,13 +66,18 @@ class BudgetBotWindowUiTest {
     assertTrue(robot.lookup("Add transaction").tryQuery().isPresent());
     robot.clickOn("Budgets");
     WaitForAsyncUtils.waitForFxEvents();
+    WaitForAsyncUtils.waitFor(
+        5, TimeUnit.SECONDS, () -> robot.lookup("Add").tryQuery().isPresent());
     assertTrue(robot.lookup("Add").tryQuery().isPresent());
     robot.clickOn("Settings");
     WaitForAsyncUtils.waitForFxEvents();
     assertTrue(robot.lookup("Save settings").tryQuery().isPresent());
     robot.clickOn("Dashboard");
     WaitForAsyncUtils.waitForFxEvents();
-    assertTrue(robot.lookup(".balance").tryQuery().isPresent());
+    Label netCashFlow = robot.lookup(".balance").queryAs(Label.class);
+    assertTrue(netCashFlow.getText().startsWith("Net cash flow: "));
+    assertFalse(robot.lookup("Overall balance:").tryQuery().isPresent());
+    assertFalse(robot.lookup("Recent activity").tryQuery().isPresent());
   }
 
   @Test
@@ -150,10 +158,10 @@ class BudgetBotWindowUiTest {
         service.dashboard(YearMonth.now()).categorySummaries().getFirst().available());
 
     robot.clickOn("Settings");
-    robot.clickOn("Enable rollover for the whole budget");
+    assertFalse(robot.lookup("Enable rollover for the whole budget").tryQuery().isPresent());
     robot.clickOn("Save settings");
     robot.clickOn("OK");
-    assertTrue(service.settings().rolloverEnabled());
+    assertEquals(80, service.settings().warningThreshold());
   }
 
   private Category category(String name) {

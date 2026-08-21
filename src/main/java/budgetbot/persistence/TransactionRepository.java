@@ -34,14 +34,12 @@ final class TransactionRepository {
     }
   }
 
-  List<Transaction> findRecent(int limit) {
-    try (PreparedStatement s =
-        connection.prepareStatement(
-            "SELECT id, type, amount, transaction_date, description, category_id FROM transactions ORDER BY transaction_date DESC, id DESC LIMIT ?")) {
-      s.setInt(1, limit);
-      return read(s);
-    } catch (SQLException e) {
-      throw PersistenceSupport.failure("read recent transactions", e);
+  boolean hasAny() {
+    try (Statement statement = connection.createStatement();
+        ResultSet resultSet = statement.executeQuery("SELECT EXISTS(SELECT 1 FROM transactions)")) {
+      return resultSet.next() && resultSet.getInt(1) == 1;
+    } catch (SQLException exception) {
+      throw PersistenceSupport.failure("check for transactions", exception);
     }
   }
 
@@ -100,21 +98,25 @@ final class TransactionRepository {
     }
   }
 
-  BigDecimal overallBalance() {
+  BigDecimal netCashFlow(YearMonth month) {
     try (PreparedStatement s =
-            connection.prepareStatement("SELECT type, amount FROM transactions");
-        ResultSet r = s.executeQuery()) {
-      BigDecimal total = BigDecimal.ZERO;
-      while (r.next()) {
-        BigDecimal a = new BigDecimal(r.getString("amount"));
-        total =
-            TransactionType.INCOME.name().equals(r.getString("type"))
-                ? total.add(a)
-                : total.subtract(a);
+        connection.prepareStatement(
+            "SELECT type, amount FROM transactions WHERE transaction_date >= ? AND transaction_date < ?")) {
+      s.setString(1, month.atDay(1).toString());
+      s.setString(2, month.plusMonths(1).atDay(1).toString());
+      try (ResultSet r = s.executeQuery()) {
+        BigDecimal total = BigDecimal.ZERO;
+        while (r.next()) {
+          BigDecimal amount = new BigDecimal(r.getString("amount"));
+          total =
+              TransactionType.INCOME.name().equals(r.getString("type"))
+                  ? total.add(amount)
+                  : total.subtract(amount);
+        }
+        return total;
       }
-      return total;
     } catch (SQLException e) {
-      throw PersistenceSupport.failure("calculate the overall balance", e);
+      throw PersistenceSupport.failure("calculate monthly net cash flow", e);
     }
   }
 

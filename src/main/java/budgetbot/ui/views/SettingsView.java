@@ -5,7 +5,6 @@ import budgetbot.persistence.BudgetPersistenceException;
 import budgetbot.service.BudgetService;
 import budgetbot.ui.UiAlerts;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
@@ -31,8 +30,6 @@ public final class SettingsView {
    */
   public VBox build() {
     BudgetSettings current = service.settings();
-    CheckBox rollover = new CheckBox("Enable rollover for the whole budget");
-    rollover.setSelected(current.rolloverEnabled());
     Spinner<Integer> threshold = new Spinner<>();
     threshold.setValueFactory(
         new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 99, current.warningThreshold()));
@@ -40,7 +37,7 @@ public final class SettingsView {
     save.setOnAction(
         event -> {
           try {
-            service.saveSettings(rollover.isSelected(), threshold.getValue());
+            service.saveSettings(threshold.getValue());
             UiAlerts.information(
                 "Settings saved",
                 "New settings will apply to the next month started in BudgetBot.");
@@ -49,13 +46,7 @@ public final class SettingsView {
           }
         });
     VBox content =
-        new VBox(
-            16,
-            new Label("Settings"),
-            rollover,
-            new Label("Warning threshold (%)"),
-            threshold,
-            save);
+        new VBox(16, new Label("Settings"), new Label("Warning threshold (%)"), threshold, save);
     content.setPadding(new javafx.geometry.Insets(28));
     return content;
   }

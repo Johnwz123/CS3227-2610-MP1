@@ -3,7 +3,6 @@ package budgetbot;
 import budgetbot.persistence.BudgetDatabase;
 import budgetbot.service.BudgetService;
 import budgetbot.ui.BudgetBotWindow;
-import java.nio.file.Path;
 import javafx.application.Application;
 import javafx.stage.Stage;
 
@@ -16,7 +15,9 @@ public final class BudgetBotApp extends Application {
   private BudgetDatabase database;
 
   /** Creates an application instance for the JavaFX runtime. */
-  public BudgetBotApp() {}
+  public BudgetBotApp() {
+    super();
+  }
 
   /**
    * Opens the local database and shows the main BudgetBot window.
@@ -26,7 +27,7 @@ public final class BudgetBotApp extends Application {
    */
   @Override
   public void start(Stage stage) {
-    database = new BudgetDatabase(defaultDatabasePath());
+    database = new BudgetDatabase(DatabasePaths.defaultDatabasePath());
     BudgetService service = new BudgetService(database);
     new BudgetBotWindow(stage, service).show();
   }
@@ -50,14 +51,5 @@ public final class BudgetBotApp extends Application {
    */
   public static void main(String[] args) {
     launch(args);
-  }
-
-  /**
-   * Returns the default location of the local SQLite database.
-   *
-   * @return the BudgetBot database inside the current user's home directory
-   */
-  static Path defaultDatabasePath() {
-    return Path.of(System.getProperty("user.home"), ".budgetbot", "budgetbot.db");
   }
 }

@@ -28,6 +28,12 @@ application {
     applicationDefaultJvmArgs = ['--enable-native-access=ALL-UNNAMED']
 }
 
+distributions {
+    main {
+        distributionBaseName = 'budgetbot'
+    }
+}
+
 javafx {
     version = '25.0.1'
     modules = ['javafx.controls']
@@ -94,6 +100,176 @@ tasks.named('jacocoTestReport') {
     reports {
         xml.required = true
         html.required = true
+    }
+}
+
+tasks.register('databaseTool', JavaExec) {
+    group = 'application'
+    description = 'Runs BudgetBot database reset and demo-data seed operations.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'budgetbot.tools.DatabaseTool'
+
+    doFirst {
+        def command = providers.gradleProperty('databaseToolCommand').orNull
+        if (command == null || command.isBlank()) {
+            throw new GradleException('Set -PdatabaseToolCommand=reset or -PdatabaseToolCommand=seed.')
+        }
+        def toolArguments = [command]
+        if (providers.gradleProperty('databaseToolForce').orNull == 'true') {
+            toolArguments.add('--force')
+        }
+        def databasePath = providers.gradleProperty('databasePath').orNull
+        if (databasePath != null && !databasePath.isBlank()) {
+            toolArguments.add('--database')
+            toolArguments.add(databasePath)
+        }
+        setArgs(toolArguments)
+    }
+}
+
+def packageOperatingSystem = System.getProperty('os.name').toLowerCase(Locale.ROOT)
+def nativePackagePlatform
+def nativePackageType
+def nativePackageExtension
+if (packageOperatingSystem.contains('windows')) {
+    nativePackagePlatform = 'windows'
+    nativePackageType = 'msi'
+    nativePackageExtension = 'msi'
+} else if (packageOperatingSystem.contains('mac')) {
+    nativePackagePlatform = 'macos'
+    nativePackageType = 'dmg'
+    nativePackageExtension = 'dmg'
+} else if (packageOperatingSystem.contains('linux')) {
+    nativePackagePlatform = 'linux'
+    nativePackageType = 'deb'
+    nativePackageExtension = 'deb'
+} else {
+    throw new GradleException("Native packaging is not supported on ${System.getProperty('os.name')}.")
+}
+
+def releaseVersion = {
+    def value = providers.gradleProperty('releaseVersion').orNull
+    if (value == null || !(value ==~ /\d+\.\d+\.\d+/)) {
+        throw new GradleException('Set -PreleaseVersion=<major>.<minor>.<patch> when packaging BudgetBot.')
+    }
+    return value
+}
+
+def packagingJavaHome = {
+    def launcher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(25)
+    }.get()
+    return launcher.metadata.installationPath.asFile
+}
+
+def packageTool = {
+    def javaHome = packagingJavaHome()
+    def executableName = packageOperatingSystem.contains('windows') ? 'jpackage.exe' : 'jpackage'
+    def executable = new File(javaHome, "bin/${executableName}")
+    if (!executable.isFile()) {
+        throw new GradleException(
+                "A full JDK 25 with jpackage is required for native packaging. Missing: ${executable}")
+    }
+    return executable
+}
+
+def javafxModulePath = {
+    def modules = configurations.runtimeClasspath.files.findAll {
+        it.name ==~ /javafx-.+-(win|linux|linux-aarch64|mac|mac-aarch64)\.jar/
+    }
+    def jmodsDirectory = new File(packagingJavaHome(), 'jmods')
+    if (modules.isEmpty()) {
+        throw new GradleException('Could not resolve platform-specific JavaFX modules for native packaging.')
+    }
+    if (jmodsDirectory.isDirectory()) {
+        modules.add(0, jmodsDirectory)
+    }
+    return modules.collect { it.absolutePath }.join(File.pathSeparator)
+}
+
+def jpackageArguments = { String type, File destination, File temporaryDirectory ->
+    def installLib = layout.buildDirectory.dir('install/budgetbot/lib').get().asFile
+    def mainJar = tasks.named('jar').get().archiveFile.get().asFile
+    if (!installLib.isDirectory() || !new File(installLib, mainJar.name).isFile()) {
+        throw new GradleException('The application distribution was not created before native packaging.')
+    }
+
+    def arguments = [
+        '--type', type,
+        '--dest', destination.absolutePath,
+        '--temp', temporaryDirectory.absolutePath,
+        '--name', 'BudgetBot',
+        '--app-version', releaseVersion(),
+        '--vendor', 'NUS CS3227',
+        '--description', 'A local desktop budget tracker',
+        '--input', installLib.absolutePath,
+        '--main-jar', mainJar.name,
+        '--main-class', application.mainClass.get(),
+        '--module-path', javafxModulePath(),
+        '--add-modules', 'javafx.controls,java.sql,java.logging,java.naming,jdk.crypto.ec',
+        '--java-options', '--enable-native-access=ALL-UNNAMED'
+    ]
+    if (type == 'msi') {
+        arguments.addAll(['--win-menu', '--win-menu-group', 'BudgetBot', '--win-shortcut'])
+    } else if (type == 'deb') {
+        arguments.add('--linux-shortcut')
+    } else if (type == 'dmg') {
+        arguments.addAll(['--mac-package-identifier', 'edu.nus.cs3227.budgetbot'])
+    }
+    return arguments
+}
+
+tasks.register('packageAppImage', Exec) {
+    group = 'distribution'
+    description = 'Builds a self-contained BudgetBot application image using jpackage and jlink.'
+    dependsOn tasks.named('installDist')
+    inputs.files(configurations.runtimeClasspath)
+    outputs.dir(layout.buildDirectory.dir('jpackage/app-image'))
+
+    doFirst {
+        def outputDirectory = layout.buildDirectory.dir('jpackage/app-image').get().asFile
+        def temporaryDirectory = layout.buildDirectory.dir('jpackage/temp').get().asFile
+        delete(outputDirectory)
+        delete(temporaryDirectory)
+        mkdir(outputDirectory)
+        mkdir(temporaryDirectory)
+        commandLine(packageTool(), *jpackageArguments('app-image', outputDirectory, temporaryDirectory))
+    }
+}
+
+tasks.register('packageNative', Exec) {
+    group = 'distribution'
+    description = 'Builds the native BudgetBot installer for the current operating system.'
+    dependsOn tasks.named('installDist')
+    inputs.files(configurations.runtimeClasspath)
+    outputs.dir(layout.buildDirectory.dir('packages'))
+
+    doFirst {
+        def outputDirectory = layout.buildDirectory.dir('jpackage/installer').get().asFile
+        def temporaryDirectory = layout.buildDirectory.dir('jpackage/temp').get().asFile
+        delete(outputDirectory)
+        delete(temporaryDirectory)
+        mkdir(outputDirectory)
+        mkdir(temporaryDirectory)
+        commandLine(packageTool(), *jpackageArguments(nativePackageType, outputDirectory, temporaryDirectory))
+    }
+
+    doLast {
+        def installerDirectory = layout.buildDirectory.dir('jpackage/installer').get().asFile
+        def installers = fileTree(installerDirectory).matching {
+            include "*.${nativePackageExtension}"
+        }.files
+        if (installers.size() != 1) {
+            throw new GradleException("Expected one ${nativePackageExtension} installer, found ${installers.size()}.")
+        }
+
+        def outputDirectory = layout.buildDirectory.dir('packages').get().asFile
+        mkdir(outputDirectory)
+        copy {
+            from installers.iterator().next()
+            into outputDirectory
+            rename { "BudgetBot-${releaseVersion()}-${nativePackagePlatform}.${nativePackageExtension}" }
+        }
     }
 }
 

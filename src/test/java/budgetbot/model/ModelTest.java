@@ -1,9 +1,7 @@
 package budgetbot.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -16,14 +14,10 @@ class ModelTest {
   @Test
   void defaultsAndMonthlyAvailabilityUseExpectedValues() {
     BudgetSettings settings = BudgetSettings.defaults();
-    MonthlyBudget budget =
-        new MonthlyBudget(
-            3, YearMonth.of(2026, 8), new BigDecimal("100"), new BigDecimal("25"), true, 75);
+    MonthlyBudget budget = new MonthlyBudget(3, YearMonth.of(2026, 8), new BigDecimal("100"), 75);
 
-    assertFalse(settings.rolloverEnabled());
     assertEquals(80, settings.warningThreshold());
-    assertEquals(new BigDecimal("125"), budget.availableAmount());
-    assertTrue(budget.rolloverEnabled());
+    assertEquals(new BigDecimal("100"), budget.availableAmount());
   }
 
   @Test
@@ -47,9 +41,6 @@ class ModelTest {
 
   @Test
   void dashboardSnapshotCopiesItsLists() {
-    Transaction transaction =
-        new Transaction(
-            1, TransactionType.INCOME, BigDecimal.ONE, LocalDate.of(2026, 8, 1), "Pay", null);
     CategorySummary summary =
         new CategorySummary(
             new Category(1, "Income"),
@@ -57,18 +48,15 @@ class ModelTest {
             BigDecimal.ONE,
             BigDecimal.ONE,
             BudgetState.NORMAL);
-    List<Transaction> transactions = new ArrayList<>(List.of(transaction));
     List<CategorySummary> summaries = new ArrayList<>(List.of(summary));
 
     DashboardSnapshot snapshot =
-        new DashboardSnapshot(YearMonth.of(2026, 8), BigDecimal.ONE, transactions, summaries);
-    transactions.clear();
+        new DashboardSnapshot(YearMonth.of(2026, 8), BigDecimal.ONE, summaries);
     summaries.clear();
 
-    assertEquals(1, snapshot.recentTransactions().size());
     assertEquals(1, snapshot.categorySummaries().size());
     assertThrows(
-        UnsupportedOperationException.class, () -> snapshot.recentTransactions().add(transaction));
+        UnsupportedOperationException.class, () -> snapshot.categorySummaries().add(summary));
   }
 
   @Test

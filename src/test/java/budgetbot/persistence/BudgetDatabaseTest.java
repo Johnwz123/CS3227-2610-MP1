@@ -40,21 +40,21 @@ class BudgetDatabaseTest {
     assertTrue(Files.isRegularFile(databasePath));
     assertEquals(9, database.categories().size());
     assertEquals("Dining", database.categories().getFirst().name());
-    assertEquals(new BudgetSettings(false, 80), database.settings());
+    assertEquals(new BudgetSettings(80), database.settings());
   }
 
   @Test
   void reopensWithoutReseedingOrLosingRepositoryData() {
     BudgetDatabase storage = openDatabase();
     long categoryId = storage.addCategory("Travel");
-    storage.saveSettings(new BudgetSettings(true, 65));
+    storage.saveSettings(new BudgetSettings(65));
     storage.close();
 
     database = new BudgetDatabase(temporaryDirectory.resolve("budgetbot.db"));
 
     assertEquals(10, database.categories().size());
     assertTrue(database.categories().stream().anyMatch(category -> category.id() == categoryId));
-    assertEquals(new BudgetSettings(true, 65), database.settings());
+    assertEquals(new BudgetSettings(65), database.settings());
   }
 
   @Test
@@ -112,9 +112,8 @@ class BudgetDatabaseTest {
     assertEquals(
         List.of(expenseId, incomeId),
         storage.transactions(month).stream().map(Transaction::id).toList());
-    assertEquals(2, storage.recentTransactions(2).size());
     assertEquals(new BigDecimal("25"), storage.expenseTotal(groceries.id(), month));
-    assertEquals(new BigDecimal("65"), storage.overallBalance());
+    assertEquals(new BigDecimal("75"), storage.netCashFlow(month));
 
     storage.updateTransaction(
         new Transaction(
@@ -125,14 +124,14 @@ class BudgetDatabaseTest {
             "Refund",
             null));
     assertEquals(TransactionType.INCOME, storage.transactions(month).getFirst().type());
-    assertEquals(new BigDecimal("120"), storage.overallBalance());
+    assertEquals(new BigDecimal("130"), storage.netCashFlow(month));
 
     storage.deleteTransaction(incomeId);
     assertEquals(1, storage.transactions(month).size());
   }
 
   @Test
-  void snapshotsBudgetsAndCarriesRemainingAmountsForward() {
+  void snapshotsFixedMonthlyBudgetsWithoutCarryover() {
     BudgetDatabase storage = openDatabase();
     Category groceries = category("Groceries");
     YearMonth month = YearMonth.of(2026, 8);
@@ -146,15 +145,25 @@ class BudgetDatabaseTest {
             month.atDay(2),
             "Market",
             groceries.id()));
-    storage.saveSettings(new BudgetSettings(true, 70));
+    storage.saveSettings(new BudgetSettings(70));
 
     MonthlyBudget nextMonth = monthlyBudget(groceries.id(), month.plusMonths(1));
 
     assertEquals(new BigDecimal("100"), nextMonth.baseAmount());
-    assertEquals(new BigDecimal("75"), nextMonth.carryover());
-    assertEquals(new BigDecimal("175"), nextMonth.availableAmount());
-    assertTrue(nextMonth.rolloverEnabled());
+    assertEquals(new BigDecimal("100"), nextMonth.availableAmount());
     assertEquals(70, nextMonth.warningThreshold());
+
+    storage.addTransaction(
+        new Transaction(
+            0,
+            TransactionType.EXPENSE,
+            new BigDecimal("200"),
+            month.plusMonths(1).atDay(2),
+            "Large shop",
+            groceries.id()));
+    assertEquals(
+        new BigDecimal("100"),
+        monthlyBudget(groceries.id(), month.plusMonths(2)).availableAmount());
   }
 
   private BudgetDatabase openDatabase() {
