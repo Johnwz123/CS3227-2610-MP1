@@ -12,6 +12,26 @@ their limits.
 Budget data is stored locally at `~/.budgetbot/budgetbot.db`. BudgetBot does not require an account,
 network connection, or external financial service.
 
+## Install BudgetBot
+
+Download the installer for your operating system from the repository's **Releases** page. Packaged
+releases bundle the runtime: users do not need to install Java, Gradle, or a terminal.
+
+- **Windows:** Download `BudgetBot-<version>-windows.msi`, open it, and complete the installer. Launch
+  BudgetBot from the Start menu.
+- **macOS:** Download `BudgetBot-<version>-macos.dmg`, open it, and drag BudgetBot to **Applications**.
+  Launch it from Applications.
+- **Debian/Ubuntu Linux:** Download `BudgetBot-<version>-linux.deb`, open it with the system software
+  installer, or run `sudo apt install ./BudgetBot-<version>-linux.deb`. Launch BudgetBot from the
+  applications menu.
+
+To upgrade, install the newer package over the existing version. The application data directory is
+separate from the installed application, so upgrades and normal uninstalls retain
+`~/.budgetbot/budgetbot.db`.
+
+Packages are currently unsigned. Windows and macOS may display a trust warning; only continue after
+checking that the release was downloaded from this repository.
+
 ## Prerequisites
 
 - JDK 25
@@ -45,7 +65,14 @@ gradlew.bat jacocoTestReport    # Generate the coverage report
 gradlew.bat openJacocoReport    # Generate and open the coverage report
 gradlew.bat javadoc             # Generate API documentation
 gradlew.bat openJavadoc         # Generate and open API documentation
+gradlew.bat packageAppImage "-PreleaseVersion=1.2.3"  # Create a self-contained app image
+gradlew.bat packageNative "-PreleaseVersion=1.2.3"    # Create the host-native installer
 ```
+
+Native packaging requires a full JDK 25 that includes `jpackage`. On Windows, the `.msi` task also
+requires WiX Toolset on `PATH`; the release workflow installs it automatically. The generated
+installer is written to `build/packages/` as `BudgetBot-<version>-windows.msi`,
+`BudgetBot-<version>-macos.dmg`, or `BudgetBot-<version>-linux.deb`, according to the host platform.
 
 ## Resetting and seeding local data
 

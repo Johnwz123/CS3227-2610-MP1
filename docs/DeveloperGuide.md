@@ -44,6 +44,38 @@ downloadable report artifact, but do not receive a comment because their workflo
 
 For the documentation site, install Node.js 24 or later, run `npm install` in `website`, then run `npm start`.
 
+## Native release packaging
+
+Use a full JDK 25 that includes `jpackage`; a runtime-only JDK cannot build installers. Run the
+following from the repository root, replacing the version with the release version:
+
+```text
+gradlew.bat packageAppImage "-PreleaseVersion=1.2.3"
+gradlew.bat packageNative "-PreleaseVersion=1.2.3"
+```
+
+`packageAppImage` is useful for inspecting the bundled application and runtime. `packageNative`
+creates exactly one host-native installer in `build/packages/`: a Windows `.msi`, macOS `.dmg`, or
+Debian/Ubuntu `.deb`. On Windows, install WiX Toolset and ensure its executables are on `PATH` before
+creating an MSI. The packaged application uses the normal per-user data path, so the installer input
+does not include `~/.budgetbot/budgetbot.db`.
+
+To publish a release, first ensure the commit passes the normal quality suite. Push an annotated or
+lightweight tag in the exact format `v<major>.<minor>.<patch>` (for example, `v1.2.3`). The release
+workflow validates the tag, runs formatting, checks, coverage, and Javadoc on Windows, macOS, and
+Ubuntu, then builds the native installer on each matching runner. It publishes one GitHub Release with
+these three assets only after every matrix entry succeeds:
+
+```text
+BudgetBot-1.2.3-windows.msi
+BudgetBot-1.2.3-macos.dmg
+BudgetBot-1.2.3-linux.deb
+```
+
+The release workflow is the only workflow with permission to write GitHub Releases; ordinary CI
+remains read-only. The initial packages are unsigned and not notarized, so platform trust warnings are
+expected until a future signing change is implemented.
+
 ## System Overview
 
 BudgetBot uses a layered JavaFX design: views call `BudgetService`, which owns validation and monthly
