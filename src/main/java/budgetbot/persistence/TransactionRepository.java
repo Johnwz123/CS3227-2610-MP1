@@ -1,6 +1,7 @@
 package budgetbot.persistence;
 
 import budgetbot.model.Transaction;
+import budgetbot.model.TransactionQuery;
 import budgetbot.model.TransactionType;
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -13,6 +14,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /** Persists transactions and calculates transaction-derived totals. */
 final class TransactionRepository {
@@ -23,14 +25,63 @@ final class TransactionRepository {
   }
 
   List<Transaction> findByMonth(YearMonth month) {
-    try (PreparedStatement s =
-        connection.prepareStatement(
-            "SELECT id, type, amount, transaction_date, description, category_id FROM transactions WHERE transaction_date >= ? AND transaction_date < ? ORDER BY transaction_date DESC, id DESC")) {
-      s.setString(1, month.atDay(1).toString());
-      s.setString(2, month.plusMonths(1).atDay(1).toString());
-      return read(s);
-    } catch (SQLException e) {
-      throw PersistenceSupport.failure("read transactions", e);
+    return find(
+        new TransactionQuery(null, month.atDay(1), month.atEndOfMonth(), null, null, null, null));
+  }
+
+  List<Transaction> find(TransactionQuery query) {
+    StringBuilder sql =
+        new StringBuilder(
+            "SELECT id, type, amount, transaction_date, description, category_id FROM transactions WHERE 1 = 1");
+    List<String> textParameters = new ArrayList<>();
+    List<Long> categoryParameters = new ArrayList<>();
+    List<BigDecimal> amountParameters = new ArrayList<>();
+    if (query.startDate() != null) {
+      sql.append(" AND transaction_date >= ?");
+      textParameters.add(query.startDate().toString());
+    }
+    if (query.endDate() != null) {
+      sql.append(" AND transaction_date <= ?");
+      textParameters.add(query.endDate().toString());
+    }
+    if (query.description() != null) {
+      sql.append(" AND LOWER(description) LIKE ? ESCAPE '\\'");
+      textParameters.add("%" + escapeLike(query.description()).toLowerCase(Locale.ROOT) + "%");
+    }
+    if (query.type() != null) {
+      sql.append(" AND type = ?");
+      textParameters.add(query.type().name());
+    }
+    if (query.categoryId() != null) {
+      sql.append(" AND category_id = ?");
+      categoryParameters.add(query.categoryId());
+    }
+    if (query.minimumAmount() != null) {
+      sql.append(" AND CAST(amount AS NUMERIC) >= CAST(? AS NUMERIC)");
+      amountParameters.add(query.minimumAmount());
+    }
+    if (query.maximumAmount() != null) {
+      sql.append(" AND CAST(amount AS NUMERIC) <= CAST(? AS NUMERIC)");
+      amountParameters.add(query.maximumAmount());
+    }
+    sql.append(" ORDER BY transaction_date DESC, id DESC");
+    try (PreparedStatement statement = connection.prepareStatement(sql.toString())) {
+      int index = 1;
+      for (String parameter : textParameters) {
+        statement.setString(index, parameter);
+        index++;
+      }
+      for (Long parameter : categoryParameters) {
+        statement.setLong(index, parameter);
+        index++;
+      }
+      for (BigDecimal parameter : amountParameters) {
+        statement.setString(index, parameter.toPlainString());
+        index++;
+      }
+      return read(statement);
+    } catch (SQLException exception) {
+      throw PersistenceSupport.failure("read transactions", exception);
     }
   }
 
@@ -157,5 +208,9 @@ final class TransactionRepository {
     } else {
       s.setLong(5, t.categoryId());
     }
+  }
+
+  private String escapeLike(String value) {
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 }

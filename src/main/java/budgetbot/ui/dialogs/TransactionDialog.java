@@ -121,7 +121,10 @@ public final class TransactionDialog {
 
   private static Label validationMessage() {
     Label validation = new Label();
+    validation.setId("transaction-validation-message");
     validation.getStyleClass().add("validation-message");
+    validation.setMinWidth(0);
+    validation.setMaxWidth(Double.MAX_VALUE);
     validation.setWrapText(true);
     return validation;
   }

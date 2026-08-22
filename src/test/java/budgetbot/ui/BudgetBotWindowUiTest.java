@@ -2,6 +2,7 @@ package budgetbot.ui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import budgetbot.model.Category;
@@ -19,8 +20,11 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.AfterEach;
@@ -60,8 +64,12 @@ class BudgetBotWindowUiTest {
   @Test
   void navigatesViewsAndChangesTheSelectedMonth(FxRobot robot) throws Exception {
     click(robot, "Transactions");
+    WaitForAsyncUtils.waitFor(
+        5, TimeUnit.SECONDS, () -> robot.lookup("Add transaction").tryQuery().isPresent());
     assertTrue(robot.lookup("Add transaction").tryQuery().isPresent());
     click(robot, ">");
+    WaitForAsyncUtils.waitFor(
+        5, TimeUnit.SECONDS, () -> robot.lookup("Add transaction").tryQuery().isPresent());
     assertTrue(robot.lookup("Add transaction").tryQuery().isPresent());
     click(robot, "Budgets");
     WaitForAsyncUtils.waitFor(
@@ -121,13 +129,108 @@ class BudgetBotWindowUiTest {
     click(robot, "Transactions");
     click(robot, "Add transaction");
     click(robot, button(dialog(robot), "Save"));
-    assertTrue(
-        robot
-            .lookup("Amount must be a number with at most two decimal places.")
-            .tryQuery()
-            .isPresent());
+    Label validation = robot.lookup("#transaction-validation-message").queryAs(Label.class);
+    assertEquals("Amount must be a number with at most two decimal places.", validation.getText());
+    assertTrue(validation.isWrapText());
+    assertTrue(validation.getHeight() > validation.getFont().getSize());
     assertTrue(dialog(robot).isVisible());
     click(robot, button(dialog(robot), "Cancel"));
+  }
+
+  @Test
+  void appliesClearsAndValidatesTransactionFilters(FxRobot robot) {
+    YearMonth month = YearMonth.now();
+    service.addTransaction(
+        TransactionType.EXPENSE,
+        new BigDecimal("12"),
+        month.atDay(2),
+        "Coffee market",
+        groceries.id());
+    service.addTransaction(
+        TransactionType.INCOME, new BigDecimal("100"), month.atDay(3), "Pay", null);
+
+    click(robot, "Transactions");
+    TextField search = robot.lookup("#transaction-search").queryAs(TextField.class);
+    TextField minimum = robot.lookup("#transaction-minimum-amount").queryAs(TextField.class);
+    TextField maximum = robot.lookup("#transaction-maximum-amount").queryAs(TextField.class);
+    robot.interact(
+        () -> {
+          search.setText("MARKET");
+          minimum.setText("20");
+          maximum.setText("25");
+        });
+    click(robot, robot.lookup("#apply-transaction-filters").queryAs(Button.class));
+
+    TableView<?> table = robot.lookup(".data-table").queryAs(TableView.class);
+    assertEquals(1, table.getItems().size());
+    assertEquals(
+        "1 transaction", robot.lookup("#transaction-result-count").queryAs(Label.class).getText());
+
+    click(robot, robot.lookup("#clear-transaction-filters").queryAs(Button.class));
+    assertEquals(3, table.getItems().size());
+    assertEquals(
+        "3 transactions", robot.lookup("#transaction-result-count").queryAs(Label.class).getText());
+
+    DatePicker start = robot.lookup("#transaction-start-date").queryAs(DatePicker.class);
+    DatePicker end = robot.lookup("#transaction-end-date").queryAs(DatePicker.class);
+    robot.interact(
+        () -> {
+          start.setValue(month.atDay(3));
+          end.setValue(month.atDay(1));
+        });
+    click(robot, robot.lookup("#apply-transaction-filters").queryAs(Button.class));
+    assertEquals(3, table.getItems().size());
+    assertEquals(
+        "Start date cannot be after end date.",
+        robot.lookup("#transaction-filter-error").queryAs(Label.class).getText());
+  }
+
+  @Test
+  void refreshesActiveTransactionFilterAfterAnEdit(FxRobot robot) throws TimeoutException {
+    click(robot, "Transactions");
+    TextField search = robot.lookup("#transaction-search").queryAs(TextField.class);
+    robot.interact(() -> search.setText("Market"));
+    click(robot, robot.lookup("#apply-transaction-filters").queryAs(Button.class));
+    assertEquals(1, robot.lookup(".data-table").queryAs(TableView.class).getItems().size());
+
+    click(robot, "Edit");
+    GridPane fields = (GridPane) ((VBox) dialog(robot).getContent()).getChildren().getFirst();
+    TextField description = (TextField) nodeAt(fields, 1, 3);
+    robot.interact(() -> description.setText("Groceries"));
+    click(robot, button(dialog(robot), "Save"));
+
+    assertEquals(0, robot.lookup(".data-table").queryAs(TableView.class).getItems().size());
+    assertEquals(
+        "0 transactions", robot.lookup("#transaction-result-count").queryAs(Label.class).getText());
+  }
+
+  @Test
+  void groupsAndCoordinatesTransactionTypeAndCategoryFilters(FxRobot robot) {
+    click(robot, "Transactions");
+    FlowPane criteria = robot.lookup("#transaction-filter-criteria").queryAs(FlowPane.class);
+    HBox primary = robot.lookup("#transaction-filter-primary-group").queryAs(HBox.class);
+    HBox secondary = robot.lookup("#transaction-filter-secondary-group").queryAs(HBox.class);
+    @SuppressWarnings("unchecked")
+    ComboBox<TransactionType> type =
+        robot.lookup("#transaction-type-filter").queryAs(ComboBox.class);
+    ComboBox<?> category = robot.lookup("#transaction-category-filter").queryAs(ComboBox.class);
+
+    assertEquals(2, criteria.getChildren().size());
+    assertEquals(primary, criteria.getChildren().getFirst());
+    assertEquals(secondary, criteria.getChildren().get(1));
+    assertEquals(type, secondary.getChildren().getFirst());
+    assertEquals(category, secondary.getChildren().get(1));
+    assertTrue(type.getMinWidth() >= 165);
+
+    robot.interact(() -> type.setValue(TransactionType.INCOME));
+    assertNull(category.getValue());
+    assertFalse(category.isVisible());
+    assertFalse(category.isManaged());
+
+    robot.interact(() -> category.getSelectionModel().select(0));
+    assertEquals(TransactionType.EXPENSE, type.getValue());
+    assertTrue(category.isVisible());
+    assertTrue(category.isManaged());
   }
 
   @Test

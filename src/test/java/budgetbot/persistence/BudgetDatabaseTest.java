@@ -9,6 +9,7 @@ import budgetbot.model.BudgetSettings;
 import budgetbot.model.Category;
 import budgetbot.model.MonthlyBudget;
 import budgetbot.model.Transaction;
+import budgetbot.model.TransactionQuery;
 import budgetbot.model.TransactionType;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -164,6 +165,71 @@ class BudgetDatabaseTest {
     assertEquals(
         new BigDecimal("100"),
         monthlyBudget(groceries.id(), month.plusMonths(2)).availableAmount());
+  }
+
+  @Test
+  void filtersTransactionHistoryWithEveryCriterionAndInclusiveBounds() {
+    BudgetDatabase storage = openDatabase();
+    Category groceries = category("Groceries");
+    YearMonth month = YearMonth.of(2026, 8);
+    storage.addTransaction(
+        new Transaction(
+            0,
+            TransactionType.EXPENSE,
+            new BigDecimal("25"),
+            month.atDay(5),
+            "Market shop",
+            groceries.id()));
+    storage.addTransaction(
+        new Transaction(
+            0,
+            TransactionType.EXPENSE,
+            new BigDecimal("10"),
+            month.atDay(4),
+            "Market snack",
+            groceries.id()));
+    storage.addTransaction(
+        new Transaction(
+            0,
+            TransactionType.INCOME,
+            new BigDecimal("25"),
+            month.atDay(5),
+            "Market refund",
+            null));
+    storage.addTransaction(
+        new Transaction(
+            0,
+            TransactionType.EXPENSE,
+            new BigDecimal("30"),
+            month.minusMonths(1).atDay(31),
+            "Market trip",
+            groceries.id()));
+
+    var matching =
+        storage.transactions(
+            new TransactionQuery(
+                "MARKET",
+                month.atDay(5),
+                month.atDay(5),
+                groceries.id(),
+                TransactionType.EXPENSE,
+                new BigDecimal("25"),
+                new BigDecimal("25")));
+    assertEquals(List.of("Market shop"), matching.stream().map(Transaction::description).toList());
+
+    var oneSided =
+        storage.transactions(
+            new TransactionQuery(
+                "market", null, month.atDay(4), null, null, null, new BigDecimal("30")));
+    assertEquals(
+        List.of("Market snack", "Market trip"),
+        oneSided.stream().map(Transaction::description).toList());
+    assertTrue(
+        storage
+            .transactions(
+                new TransactionQuery(
+                    null, null, null, groceries.id(), TransactionType.INCOME, null, null))
+            .isEmpty());
   }
 
   private BudgetDatabase openDatabase() {
