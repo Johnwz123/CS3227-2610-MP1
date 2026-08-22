@@ -7,6 +7,7 @@ import budgetbot.model.CategorySummary;
 import budgetbot.model.DashboardSnapshot;
 import budgetbot.model.MonthlyBudget;
 import budgetbot.model.Transaction;
+import budgetbot.model.TransactionQuery;
 import budgetbot.model.TransactionType;
 import budgetbot.persistence.BudgetDatabase;
 import budgetbot.persistence.BudgetPersistenceException;
@@ -60,6 +61,42 @@ public final class BudgetService {
    */
   public List<Transaction> transactions(YearMonth month) {
     return database.transactions(month);
+  }
+
+  /**
+   * Returns transactions matching optional history criteria.
+   *
+   * <p>When neither date bound is supplied, the selected calendar month is used as the date range.
+   * Supplying either date bound searches transaction history without the selected-month restriction
+   * on the other side.
+   *
+   * @param month selected calendar month used when {@code query} has no date bounds
+   * @param query optional description, date, category, type, and amount criteria
+   * @return matching transactions, newest first
+   * @throws IllegalArgumentException if query bounds are invalid
+   * @throws BudgetPersistenceException if the transactions cannot be read
+   */
+  public List<Transaction> transactions(YearMonth month, TransactionQuery query) {
+    if (month == null) {
+      throw new IllegalArgumentException("Select a calendar month.");
+    }
+    if (query == null) {
+      throw new IllegalArgumentException("Transaction filters are required.");
+    }
+    TransactionQuery normalized = normalizeQuery(query);
+    validateQuery(normalized);
+    if (normalized.startDate() == null && normalized.endDate() == null) {
+      normalized =
+          new TransactionQuery(
+              normalized.description(),
+              month.atDay(1),
+              month.atEndOfMonth(),
+              normalized.categoryId(),
+              normalized.type(),
+              normalized.minimumAmount(),
+              normalized.maximumAmount());
+    }
+    return database.transactions(normalized);
   }
 
   /**
@@ -267,6 +304,42 @@ public final class BudgetService {
         date,
         description == null ? "" : description.trim(),
         type == TransactionType.INCOME ? null : categoryId);
+  }
+
+  private TransactionQuery normalizeQuery(TransactionQuery query) {
+    String description = query.description() == null ? null : query.description().trim();
+    return new TransactionQuery(
+        description == null || description.isEmpty() ? null : description,
+        query.startDate(),
+        query.endDate(),
+        query.categoryId(),
+        query.type(),
+        query.minimumAmount(),
+        query.maximumAmount());
+  }
+
+  private void validateQuery(TransactionQuery query) {
+    if (query.startDate() != null
+        && query.endDate() != null
+        && query.startDate().isAfter(query.endDate())) {
+      throw new IllegalArgumentException("Start date cannot be after end date.");
+    }
+    validateFilterAmount(query.minimumAmount(), "Minimum amount");
+    validateFilterAmount(query.maximumAmount(), "Maximum amount");
+    if (query.minimumAmount() != null
+        && query.maximumAmount() != null
+        && query.minimumAmount().compareTo(query.maximumAmount()) > 0) {
+      throw new IllegalArgumentException("Minimum amount cannot be greater than maximum amount.");
+    }
+  }
+
+  private void validateFilterAmount(BigDecimal amount, String label) {
+    if (amount != null) {
+      if (amount.signum() < 0) {
+        throw new IllegalArgumentException(label + " must be zero or greater.");
+      }
+      validateMoneyScale(amount, label);
+    }
   }
 
   private String requiredName(String value, String label) {

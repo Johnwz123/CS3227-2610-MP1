@@ -39,6 +39,14 @@
   -fx-padding: 18 20 18 20;
 }
 
+.transaction-filters {
+  -fx-background-color: white;
+  -fx-background-radius: 10;
+  -fx-border-color: #e1e8f2;
+  -fx-border-radius: 10;
+  -fx-padding: 12;
+}
+
 .section-title {
   -fx-font-size: 16px;
   -fx-font-weight: bold;
@@ -146,7 +154,7 @@
 }
 
 .validation-message {
-  -fx-text-fill: #b42318;
+  -fx-fill: #b42318;
   -fx-font-size: 12px;
   -fx-font-weight: bold;
 }
