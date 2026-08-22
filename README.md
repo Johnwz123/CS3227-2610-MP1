@@ -61,6 +61,7 @@ On Windows, use `gradlew.bat`. On macOS/Linux, use `./gradlew`.
 gradlew.bat run                 # Run the application
 gradlew.bat check               # Test and run all Java quality checks
 gradlew.bat spotlessApply       # Format Java sources
+gradlew.bat spotbugsMain         # Run static bug and security analysis
 gradlew.bat jacocoTestReport    # Generate the coverage report
 gradlew.bat openJacocoReport    # Generate and open the coverage report
 gradlew.bat javadoc             # Generate API documentation
