@@ -20,6 +20,8 @@ slug: /DeveloperGuide
 - **Code formatting**: Spotless with Google Java Format
 - **Style linting**: Checkstyle
 - **Static code analysis**: PMD
+- **Static bug and security analysis**: SpotBugs with FindSecBugs
+- **Architecture tests**: ArchUnit package-layer and cycle rules
 - **Code coverage**: JaCoCo
 
 ### Documentation
@@ -37,6 +39,11 @@ slug: /DeveloperGuide
 
 Install JDK 25 and use the Gradle Wrapper; no system Gradle installation is required.
 Run `gradlew.bat check` on Windows (or `./gradlew check` on macOS/Linux) before opening a pull request.
+It runs the JUnit suite, including the ArchUnit rules, and the production-code quality gates. SpotBugs
+uses FindSecBugs at maximal analysis effort with medium-or-higher confidence findings failing the build;
+its HTML and XML reports are written under `build/reports/spotbugs/` and uploaded by CI. The reviewed
+`config/spotbugs/exclude-filter.xml` suppresses only constructor-injection false positives in the UI
+and service layers; database and all security findings remain in scope.
 
 For same-repository pull requests, CI also posts one updated JaCoCo instruction-coverage comment and
 adds the same summary to the workflow run. Pull requests from forks retain the workflow summary and
@@ -82,6 +89,12 @@ BudgetBot uses a layered JavaFX design: views call `BudgetService`, which owns v
 calculations, and `BudgetDatabase`, which owns the SQLite schema and queries. The default application
 database is `~/.budgetbot/budgetbot.db`; tests create an isolated temporary database. Monetary values
 are represented with `BigDecimal`, never floating point.
+
+`ArchitectureTest` prevents cycles between the top-level packages and enforces their allowed
+dependencies: persistence may use only the model layer, services may use the model and persistence
+layers, UI may use model, service, and persistence types, and database tools may use model, service,
+and persistence types. `BudgetBotApp` remains the composition root and is deliberately outside these
+layer rules.
 
 The database initializer is repeatable and seeds default expense categories only for a new database.
 Monthly budget snapshots retain the base amount and warning threshold used for that month, so later

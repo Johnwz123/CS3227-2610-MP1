@@ -1,6 +1,7 @@
 package budgetbot.persistence;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -33,9 +34,12 @@ final class SchemaInitializer {
       statement.execute(
           "CREATE TABLE IF NOT EXISTS monthly_budgets (category_id INTEGER NOT NULL, month TEXT NOT NULL, base_amount TEXT NOT NULL, warning_threshold INTEGER NOT NULL, PRIMARY KEY(category_id, month), FOREIGN KEY(category_id) REFERENCES categories(id) ON DELETE CASCADE)");
       statement.execute("INSERT OR IGNORE INTO settings(id, warning_threshold) VALUES (1, 80)");
+    }
+    try (PreparedStatement statement =
+        connection.prepareStatement("INSERT OR IGNORE INTO categories(name) VALUES (?)")) {
       for (String category : DEFAULT_CATEGORIES) {
-        statement.executeUpdate(
-            "INSERT OR IGNORE INTO categories(name) VALUES ('" + category + "')");
+        statement.setString(1, category);
+        statement.executeUpdate();
       }
     }
   }

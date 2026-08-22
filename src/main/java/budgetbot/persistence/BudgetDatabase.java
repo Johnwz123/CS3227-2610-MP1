@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -34,7 +35,9 @@ public final class BudgetDatabase implements AutoCloseable {
         Files.createDirectories(parent);
       }
       connection = DriverManager.getConnection("jdbc:sqlite:" + databasePath.toAbsolutePath());
-      connection.createStatement().execute("PRAGMA foreign_keys = ON");
+      try (Statement statement = connection.createStatement()) {
+        statement.execute("PRAGMA foreign_keys = ON");
+      }
       SchemaInitializer.initialize(connection);
       categoryRepository = new CategoryRepository(connection);
       settingsRepository = new SettingsRepository(connection);

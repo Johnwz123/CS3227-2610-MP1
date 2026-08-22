@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+  <!--
+    UI and service constructors intentionally retain their injected collaborators. They never return
+    those references, so this is not an externally mutable data exposure. Keep this limited to the
+    composition layers; persistence and all security findings remain subject to SpotBugs.
+  -->
+  <Match>
+    <Class name="budgetbot.service.BudgetService"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="~budgetbot\.ui\..*"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+</FindBugsFilter>
