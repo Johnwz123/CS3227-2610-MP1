@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.YearMonth;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -58,22 +59,17 @@ class BudgetBotWindowUiTest {
 
   @Test
   void navigatesViewsAndChangesTheSelectedMonth(FxRobot robot) throws Exception {
-    robot.clickOn("Transactions");
-    WaitForAsyncUtils.waitForFxEvents();
+    click(robot, "Transactions");
     assertTrue(robot.lookup("Add transaction").tryQuery().isPresent());
-    robot.clickOn(">");
-    WaitForAsyncUtils.waitForFxEvents();
+    click(robot, ">");
     assertTrue(robot.lookup("Add transaction").tryQuery().isPresent());
-    robot.clickOn("Budgets");
-    WaitForAsyncUtils.waitForFxEvents();
+    click(robot, "Budgets");
     WaitForAsyncUtils.waitFor(
         5, TimeUnit.SECONDS, () -> robot.lookup("Add").tryQuery().isPresent());
     assertTrue(robot.lookup("Add").tryQuery().isPresent());
-    robot.clickOn("Settings");
-    WaitForAsyncUtils.waitForFxEvents();
+    click(robot, "Settings");
     assertTrue(robot.lookup("Save settings").tryQuery().isPresent());
-    robot.clickOn("Dashboard");
-    WaitForAsyncUtils.waitForFxEvents();
+    click(robot, "Dashboard");
     Label netCashFlow = robot.lookup(".balance").queryAs(Label.class);
     assertTrue(netCashFlow.getText().startsWith("Net cash flow: "));
     assertFalse(robot.lookup("Overall balance:").tryQuery().isPresent());
@@ -81,9 +77,9 @@ class BudgetBotWindowUiTest {
   }
 
   @Test
-  void addsEditsAndDeletesTransactionsThroughTheUi(FxRobot robot) {
-    robot.clickOn("Transactions");
-    robot.clickOn("Add transaction");
+  void addsEditsAndDeletesTransactionsThroughTheUi(FxRobot robot) throws TimeoutException {
+    click(robot, "Transactions");
+    click(robot, "Add transaction");
     DialogPane dialog = dialog(robot);
     GridPane fields = (GridPane) ((VBox) dialog.getContent()).getChildren().getFirst();
     TextField amount = (TextField) nodeAt(fields, 1, 1);
@@ -99,68 +95,68 @@ class BudgetBotWindowUiTest {
           newDescription.setText("Coffee beans");
           category.setValue(groceries);
         });
-    robot.clickOn(button(dialog, "Save"));
+    click(robot, button(dialog, "Save"));
     assertTrue(
         service.transactions(YearMonth.now()).stream()
             .anyMatch(item -> item.description().equals("Coffee beans")));
 
-    robot.clickOn("Edit");
+    click(robot, "Edit");
     dialog = dialog(robot);
     fields = (GridPane) ((VBox) dialog.getContent()).getChildren().getFirst();
     description = (TextField) nodeAt(fields, 1, 3);
     TextField editDescription = description;
     robot.interact(() -> editDescription.setText("Edited market"));
-    robot.clickOn(button(dialog, "Save"));
+    click(robot, button(dialog, "Save"));
     assertTrue(
         service.transactions(YearMonth.now()).stream()
             .anyMatch(item -> item.description().equals("Edited market")));
 
-    robot.clickOn("Delete");
-    robot.clickOn("OK");
+    click(robot, "Delete");
+    click(robot, "OK");
     assertEquals(1, service.transactions(YearMonth.now()).size());
   }
 
   @Test
-  void validatesTransactionFormWithoutClosingTheDialog(FxRobot robot) {
-    robot.clickOn("Transactions");
-    robot.clickOn("Add transaction");
-    robot.clickOn(button(dialog(robot), "Save"));
+  void validatesTransactionFormWithoutClosingTheDialog(FxRobot robot) throws TimeoutException {
+    click(robot, "Transactions");
+    click(robot, "Add transaction");
+    click(robot, button(dialog(robot), "Save"));
     assertTrue(
         robot
             .lookup("Amount must be a number with at most two decimal places.")
             .tryQuery()
             .isPresent());
     assertTrue(dialog(robot).isVisible());
-    robot.clickOn(button(dialog(robot), "Cancel"));
+    click(robot, button(dialog(robot), "Cancel"));
   }
 
   @Test
-  void managesCategoriesBudgetsAndSettingsThroughTheUi(FxRobot robot) {
-    robot.clickOn("Budgets");
-    robot.clickOn("Add");
+  void managesCategoriesBudgetsAndSettingsThroughTheUi(FxRobot robot) throws TimeoutException {
+    click(robot, "Budgets");
+    click(robot, "Add");
     DialogPane dialog = dialog(robot);
     TextField input = (TextField) ((VBox) dialog.getContent()).getChildren().get(1);
     TextField categoryInput = input;
     robot.interact(() -> categoryInput.setText("Subscriptions"));
-    robot.clickOn(button(dialog, "Save"));
+    click(robot, button(dialog, "Save"));
     assertTrue(
         service.categories().stream()
             .anyMatch(category -> category.name().equals("Subscriptions")));
 
-    robot.clickOn("Set budget");
+    click(robot, "Set budget");
     dialog = dialog(robot);
     input = (TextField) ((VBox) dialog.getContent()).getChildren().get(1);
     TextField budgetInput = input;
     robot.interact(() -> budgetInput.setText("45"));
-    robot.clickOn(button(dialog, "Save"));
+    click(robot, button(dialog, "Save"));
     assertEquals(
         new BigDecimal("45"),
         service.dashboard(YearMonth.now()).categorySummaries().getFirst().available());
 
-    robot.clickOn("Settings");
+    click(robot, "Settings");
     assertFalse(robot.lookup("Enable rollover for the whole budget").tryQuery().isPresent());
-    robot.clickOn("Save settings");
-    robot.clickOn("OK");
+    click(robot, "Save settings");
+    click(robot, "OK");
     assertEquals(80, service.settings().warningThreshold());
   }
 
@@ -171,8 +167,21 @@ class BudgetBotWindowUiTest {
         .orElseThrow();
   }
 
-  private static DialogPane dialog(FxRobot robot) {
+  private static DialogPane dialog(FxRobot robot) throws TimeoutException {
+    WaitForAsyncUtils.waitForFxEvents();
+    WaitForAsyncUtils.waitFor(
+        5, TimeUnit.SECONDS, () -> robot.lookup(".dialog-pane").tryQuery().isPresent());
     return robot.lookup(".dialog-pane").query();
+  }
+
+  private static void click(FxRobot robot, String text) {
+    robot.clickOn(text);
+    WaitForAsyncUtils.waitForFxEvents();
+  }
+
+  private static void click(FxRobot robot, Node node) {
+    robot.clickOn(node);
+    WaitForAsyncUtils.waitForFxEvents();
   }
 
   private static Button button(DialogPane dialog, String text) {
