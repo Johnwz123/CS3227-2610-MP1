@@ -54,6 +54,12 @@ The system SHALL validate filter bounds before replacing the displayed transacti
 - **AND** the complete validation message remains visible
 - **AND** the dialog grows to keep its Save and Cancel controls visible
 
+#### Scenario: Budget-form validation message exceeds one line
+
+- **WHEN** Set budget validation produces a message wider than the dialog
+- **THEN** the dialog uses a wider readable content area and wraps the message across additional lines
+- **AND** the complete message and its Save and Cancel controls remain visible
+
 #### Scenario: User clears applied filters
 
 - **WHEN** the user clears active search or filter criteria

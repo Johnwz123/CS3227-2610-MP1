@@ -144,6 +144,22 @@ class BudgetBotWindowUiTest {
   }
 
   @Test
+  void validatesBudgetFormWithVisibleFeedbackAndActions(FxRobot robot) throws TimeoutException {
+    click(robot, "Budgets");
+    click(robot, "Set budget");
+    click(robot, button(dialog(robot), "Save"));
+    TextFlow validation = robot.lookup("#budget-validation-message").queryAs(TextFlow.class);
+    Text validationText = (Text) validation.getChildren().getFirst();
+    assertEquals(
+        "Monthly base amount must be a number with at most two decimal places.",
+        validationText.getText());
+    assertTrue(validation.getHeight() >= validationText.getFont().getSize() * 2);
+    DialogPane dialog = dialog(robot);
+    assertButtonBarIsVisible(dialog);
+    click(robot, button(dialog, "Cancel"));
+  }
+
+  @Test
   void appliesClearsAndValidatesTransactionFilters(FxRobot robot) {
     YearMonth month = YearMonth.now();
     service.addTransaction(

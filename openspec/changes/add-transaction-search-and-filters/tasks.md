@@ -52,3 +52,9 @@
 - [x] 9.1 Update the validation-feedback artifacts to keep the button bar visible after the message wraps.
 - [x] 9.2 Resize the dialog after validation feedback changes, using the next JavaFX layout pulse.
 - [x] 9.3 Add JavaFX coverage for visible Save and Cancel controls after a multi-line validation error, then rerun the full quality gate.
+
+## 10. Complete Set budget validation feedback
+
+- [x] 10.1 Update the artifacts for readable, wrapped validation feedback in the slightly wider Set budget dialog.
+- [x] 10.2 Use a finite-width `TextFlow` and post-validation resize in `BudgetDialog`.
+- [x] 10.3 Add JavaFX coverage for a wrapped Set budget validation message and visible actions, then rerun the full quality gate.

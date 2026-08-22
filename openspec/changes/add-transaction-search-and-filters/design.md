@@ -41,6 +41,8 @@ AND semantics are predictable for a compact filter panel. OR-style filter groups
 
 The Transactions view will provide a compact filter panel with search text, two date controls, category and type selectors, and minimum/maximum amount controls. Applying filters validates that the start date is not after the end date and that the minimum amount is not greater than the maximum; invalid input remains visible with inline feedback and leaves the displayed result set unchanged. Transaction-form validation uses a finite-width `TextFlow`, which performs its own line layout when text exceeds the readable content width, so the user can read the complete corrective action rather than seeing an ellipsis. After setting validation feedback, the dialog resizes to its recalculated scene on the next JavaFX layout pulse, keeping the button bar within the window rather than reserving unused height up front. A clear action resets every criterion and restores the selected-month view. The view shows the current result count and an empty-state message when no transactions match.
 
+Set budget uses the same `TextFlow` and post-validation resize pattern with a modestly wider content width. This keeps its short monetary form readable while ensuring the full validation text and button bar fit without a fixed, unnecessarily tall window.
+
 An explicit Apply action avoids querying while a user is entering incomplete values and aligns invalid-range behavior with the application's existing inline validation. Immediate queries on every keystroke were rejected as unnecessary churn for a local SQLite query and awkward for partially entered dates and amounts.
 
 ### Group responsive controls and coordinate type with category
@@ -64,6 +66,7 @@ This lets users continue working within a narrowed list without adding user-pref
 - [Incomplete filter input could replace a useful result set] → Validate on Apply and retain the previous results when validation fails.
 - [A long validation message could be clipped in a narrow dialog] → Constrain the label to a readable wrap width and verify it occupies at least two text lines for a long validation message.
 - [A wrapped message can grow after the dialog is shown] → Resize the dialog from its recalculated scene on the next layout pulse and verify the button bar remains within the dialog bounds.
+- [A compact budget dialog can clip validation feedback] → Give it a slightly wider content width, wrap feedback through `TextFlow`, and test the visible button bar.
 
 ## Migration Plan
 
