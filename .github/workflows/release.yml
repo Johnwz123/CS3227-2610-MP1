@@ -78,7 +78,7 @@ jobs:
 
       - name: Verify and package on macOS
         if: runner.os == 'macOS'
-        run: ./gradlew spotlessCheck check jacocoTestReport javadoc packageNative -PreleaseVersion=${{ needs.prepare-release.outputs.version }} --no-daemon
+        run: ./gradlew spotlessCheck checkstyleMain checkstyleTest pmdMain compileTestJava javadoc packageNative -PreleaseVersion=${{ needs.prepare-release.outputs.version }} --no-daemon
 
       - name: Verify and package on Ubuntu
         if: runner.os == 'Linux'
