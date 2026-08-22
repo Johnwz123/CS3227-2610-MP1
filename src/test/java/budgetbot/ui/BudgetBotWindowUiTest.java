@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.time.YearMonth;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javafx.geometry.Bounds;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -26,6 +27,8 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -129,12 +132,15 @@ class BudgetBotWindowUiTest {
     click(robot, "Transactions");
     click(robot, "Add transaction");
     click(robot, button(dialog(robot), "Save"));
-    Label validation = robot.lookup("#transaction-validation-message").queryAs(Label.class);
-    assertEquals("Amount must be a number with at most two decimal places.", validation.getText());
-    assertTrue(validation.isWrapText());
-    assertTrue(validation.getHeight() > validation.getFont().getSize());
-    assertTrue(dialog(robot).isVisible());
-    click(robot, button(dialog(robot), "Cancel"));
+    TextFlow validation = robot.lookup("#transaction-validation-message").queryAs(TextFlow.class);
+    Text validationText = (Text) validation.getChildren().getFirst();
+    assertEquals(
+        "Amount must be a number with at most two decimal places.", validationText.getText());
+    assertTrue(validation.getHeight() >= validationText.getFont().getSize() * 2);
+    DialogPane dialog = dialog(robot);
+    assertButtonBarIsVisible(dialog);
+    assertTrue(dialog.isVisible());
+    click(robot, button(dialog, "Cancel"));
   }
 
   @Test
@@ -294,6 +300,16 @@ class BudgetBotWindowUiTest {
         .filter(button -> text.equals(button.getText()))
         .findFirst()
         .orElseThrow();
+  }
+
+  private static void assertButtonBarIsVisible(DialogPane dialog) {
+    Bounds dialogBounds = dialog.localToScene(dialog.getBoundsInLocal());
+    Bounds saveBounds =
+        button(dialog, "Save").localToScene(button(dialog, "Save").getBoundsInLocal());
+    Bounds cancelBounds =
+        button(dialog, "Cancel").localToScene(button(dialog, "Cancel").getBoundsInLocal());
+    assertTrue(saveBounds.getMaxY() <= dialogBounds.getMaxY());
+    assertTrue(cancelBounds.getMaxY() <= dialogBounds.getMaxY());
   }
 
   private static Node nodeAt(GridPane grid, int column, int row) {

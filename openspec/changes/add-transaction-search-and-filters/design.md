@@ -39,7 +39,7 @@ AND semantics are predictable for a compact filter panel. OR-style filter groups
 
 ### Use an explicit filter action with recoverable validation
 
-The Transactions view will provide a compact filter panel with search text, two date controls, category and type selectors, and minimum/maximum amount controls. Applying filters validates that the start date is not after the end date and that the minimum amount is not greater than the maximum; invalid input remains visible with inline feedback and leaves the displayed result set unchanged. Transaction-form validation labels are horizontally resizable and wrap when their text exceeds the dialog width, so the user can read the complete corrective action. A clear action resets every criterion and restores the selected-month view. The view shows the current result count and an empty-state message when no transactions match.
+The Transactions view will provide a compact filter panel with search text, two date controls, category and type selectors, and minimum/maximum amount controls. Applying filters validates that the start date is not after the end date and that the minimum amount is not greater than the maximum; invalid input remains visible with inline feedback and leaves the displayed result set unchanged. Transaction-form validation uses a finite-width `TextFlow`, which performs its own line layout when text exceeds the readable content width, so the user can read the complete corrective action rather than seeing an ellipsis. After setting validation feedback, the dialog resizes to its recalculated scene on the next JavaFX layout pulse, keeping the button bar within the window rather than reserving unused height up front. A clear action resets every criterion and restores the selected-month view. The view shows the current result count and an empty-state message when no transactions match.
 
 An explicit Apply action avoids querying while a user is entering incomplete values and aligns invalid-range behavior with the application's existing inline validation. Immediate queries on every keystroke were rejected as unnecessary churn for a local SQLite query and awkward for partially entered dates and amounts.
 
@@ -62,7 +62,8 @@ This lets users continue working within a narrowed list without adding user-pref
 - [A category filter can be confusing for income] → Clear and hide it whenever Income is selected, and select Expense whenever a category is chosen.
 - [Editing a transaction can make it cease to match] → Re-run the active query after the mutation and update the result count or empty state.
 - [Incomplete filter input could replace a useful result set] → Validate on Apply and retain the previous results when validation fails.
-- [A long validation message could be clipped in a narrow dialog] → Allow the label to shrink and wrap across lines, with UI coverage for the rendered height.
+- [A long validation message could be clipped in a narrow dialog] → Constrain the label to a readable wrap width and verify it occupies at least two text lines for a long validation message.
+- [A wrapped message can grow after the dialog is shown] → Resize the dialog from its recalculated scene on the next layout pulse and verify the button bar remains within the dialog bounds.
 
 ## Migration Plan
 

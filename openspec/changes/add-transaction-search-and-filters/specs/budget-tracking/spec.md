@@ -52,6 +52,7 @@ The system SHALL validate filter bounds before replacing the displayed transacti
 - **WHEN** transaction-form validation produces a message wider than the dialog
 - **THEN** the dialog wraps the message across additional lines
 - **AND** the complete validation message remains visible
+- **AND** the dialog grows to keep its Save and Cancel controls visible
 
 #### Scenario: User clears applied filters
 

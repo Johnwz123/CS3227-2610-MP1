@@ -40,3 +40,15 @@
 - [x] 7.1 Update the filtering artifacts to require transaction-form validation feedback to wrap without truncation.
 - [x] 7.2 Make transaction-form validation feedback shrinkable and wrapping within its dialog.
 - [x] 7.3 Add JavaFX-facing coverage for a multi-line validation message, then rerun the full quality gate.
+
+## 8. Enforced validation-message wrapping
+
+- [x] 8.1 Diagnose the ineffective wrapping constraint and strengthen the layout requirement.
+- [x] 8.2 Replace the validation label with a finite-width `TextFlow` that forces long messages to wrap.
+- [x] 8.3 Require at least two rendered text lines in JavaFX coverage, then rerun the full quality gate.
+
+## 9. Responsive transaction-dialog height
+
+- [x] 9.1 Update the validation-feedback artifacts to keep the button bar visible after the message wraps.
+- [x] 9.2 Resize the dialog after validation feedback changes, using the next JavaFX layout pulse.
+- [x] 9.3 Add JavaFX coverage for visible Save and Cancel controls after a multi-line validation error, then rerun the full quality gate.
