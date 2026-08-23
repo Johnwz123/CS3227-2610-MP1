@@ -66,5 +66,7 @@ class ModelTest {
     assertEquals(
         List.of(BudgetState.NORMAL, BudgetState.WARNING, BudgetState.OVER_BUDGET),
         List.of(BudgetState.values()));
+    assertEquals(
+        new TransactionQuery(null, null, null, null, null, null, null), TransactionQuery.empty());
   }
 }

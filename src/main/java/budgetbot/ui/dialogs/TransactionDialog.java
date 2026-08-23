@@ -7,6 +7,7 @@ import budgetbot.service.BudgetService;
 import budgetbot.ui.MoneyInput;
 import java.time.LocalDate;
 import java.util.Optional;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
@@ -20,10 +21,14 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
+import javafx.stage.Stage;
 
 /** Creates the validated dialog used to add or edit a transaction. */
 public final class TransactionDialog {
   private static final String AMOUNT_LABEL = "Amount";
+  private static final double VALIDATION_MESSAGE_WIDTH = 300;
 
   private final BudgetService service;
 
@@ -78,7 +83,7 @@ public final class TransactionDialog {
     fields.addRow(2, new Label("Date"), date);
     fields.addRow(3, new Label("Description"), description);
     fields.addRow(4, new Label("Category"), category);
-    Label validation = validationMessage();
+    ValidationMessage validation = new ValidationMessage();
     dialog.getDialogPane().setContent(new VBox(10, fields, validation));
     Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveType);
     saveButton.addEventFilter(
@@ -92,9 +97,10 @@ public final class TransactionDialog {
             if (type.getValue() == TransactionType.EXPENSE && category.getValue() == null) {
               throw new IllegalArgumentException("Choose a category for an expense.");
             }
-            validation.setText("");
+            validation.setMessage("");
           } catch (IllegalArgumentException exception) {
-            validation.setText(exception.getMessage());
+            validation.setMessage(exception.getMessage());
+            resizeToContent(dialog);
             event.consume();
           }
         });
@@ -119,11 +125,29 @@ public final class TransactionDialog {
     category.setButtonCell(new CategoryCell());
   }
 
-  private static Label validationMessage() {
-    Label validation = new Label();
-    validation.getStyleClass().add("validation-message");
-    validation.setWrapText(true);
-    return validation;
+  private static final class ValidationMessage extends TextFlow {
+    private final Text text = new Text();
+
+    private ValidationMessage() {
+      getChildren().add(text);
+      text.getStyleClass().add("validation-message");
+      setId("transaction-validation-message");
+      setMinWidth(0);
+      setPrefWidth(VALIDATION_MESSAGE_WIDTH);
+      setMaxWidth(VALIDATION_MESSAGE_WIDTH);
+    }
+
+    private void setMessage(String message) {
+      text.setText(message);
+    }
+  }
+
+  private static void resizeToContent(Dialog<?> dialog) {
+    Platform.runLater(
+        () -> {
+          dialog.getDialogPane().requestLayout();
+          ((Stage) dialog.getDialogPane().getScene().getWindow()).sizeToScene();
+        });
   }
 
   private static final class CategoryCell extends ListCell<Category> {

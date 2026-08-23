@@ -4,6 +4,7 @@ import budgetbot.model.BudgetSettings;
 import budgetbot.model.Category;
 import budgetbot.model.MonthlyBudget;
 import budgetbot.model.Transaction;
+import budgetbot.model.TransactionQuery;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -122,6 +123,17 @@ public final class BudgetDatabase implements AutoCloseable {
    */
   public List<Transaction> transactions(YearMonth month) {
     return transactionRepository.findByMonth(month);
+  }
+
+  /**
+   * Lists transactions matching optional query criteria, newest first.
+   *
+   * @param query optional history criteria
+   * @return matching transactions
+   * @throws BudgetPersistenceException if transactions cannot be read
+   */
+  public List<Transaction> transactions(TransactionQuery query) {
+    return transactionRepository.find(query);
   }
 
   /**

@@ -10,12 +10,14 @@ import budgetbot.model.BudgetState;
 import budgetbot.model.Category;
 import budgetbot.model.CategorySummary;
 import budgetbot.model.Transaction;
+import budgetbot.model.TransactionQuery;
 import budgetbot.model.TransactionType;
 import budgetbot.persistence.BudgetDatabase;
 import budgetbot.persistence.BudgetPersistenceException;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.YearMonth;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -265,6 +267,75 @@ class BudgetServiceTest {
   @Test
   void dashboardReportsZeroNetCashFlowForAMonthWithoutTransactions() {
     assertEquals(BigDecimal.ZERO, service.dashboard(month.plusMonths(1)).netCashFlow());
+  }
+
+  @Test
+  void filtersTransactionHistoryNormalizesSearchAndValidatesBounds() {
+    Category groceries = category("Groceries");
+    service.addTransaction(
+        TransactionType.EXPENSE,
+        new BigDecimal("25"),
+        month.atDay(5),
+        "Market shop",
+        groceries.id());
+    service.addTransaction(
+        TransactionType.EXPENSE, new BigDecimal("8"), month.atDay(3), "Coffee", groceries.id());
+    service.addTransaction(
+        TransactionType.INCOME, new BigDecimal("100"), month.atDay(2), "Pay", null);
+    service.addTransaction(
+        TransactionType.EXPENSE,
+        new BigDecimal("30"),
+        month.minusMonths(1).atDay(28),
+        "Market trip",
+        groceries.id());
+
+    var filtered =
+        service.transactions(
+            month,
+            new TransactionQuery(
+                "  MARKET ",
+                month.atDay(1),
+                month.atEndOfMonth(),
+                groceries.id(),
+                TransactionType.EXPENSE,
+                new BigDecimal("20"),
+                new BigDecimal("25")));
+    assertEquals(List.of("Market shop"), filtered.stream().map(Transaction::description).toList());
+
+    var oneSided =
+        service.transactions(
+            month,
+            new TransactionQuery(
+                "market", month.minusMonths(1).atDay(1), null, null, null, null, null));
+    assertEquals(
+        List.of("Market shop", "Market trip"),
+        oneSided.stream().map(Transaction::description).toList());
+    assertEquals(
+        3,
+        service
+            .transactions(month, new TransactionQuery("   ", null, null, null, null, null, null))
+            .size());
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            service.transactions(
+                month,
+                new TransactionQuery(
+                    null, month.atDay(2), month.atDay(1), null, null, null, null)));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            service.transactions(
+                month,
+                new TransactionQuery(
+                    null, null, null, null, null, new BigDecimal("2"), BigDecimal.ONE)));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            service.transactions(
+                month,
+                new TransactionQuery(null, null, null, null, null, new BigDecimal("1.001"), null)));
   }
 
   private Category category(String name) {
