@@ -1022,7 +1022,7 @@ The Docusaurus configuration:
 
 - reads the repository root as its documentation source;
 - includes `README.md` and `docs/**/*.md`;
-- excludes the blank `docs/Reflections.md` from the published site;
+- excludes `docs/Reflections.md` from the published site because it is an assessment reflection;
 - renders README at `/`, Developer Guide at `/DeveloperGuide`, and User Guide at `/UserGuide`;
 - enables Mermaid code fences with `markdown.mermaid: true` and loads `@docusaurus/theme-mermaid`;
 - installs `@mermaid-js/layout-elk` explicitly so the Docusaurus Mermaid client bundle can resolve its optional ELK layout peer; and
