@@ -14,10 +14,13 @@ const config = {
   projectName: repositoryName ?? 'CS3227-2610-MP1',
   onBrokenLinks: 'throw',
   markdown: {
+    mermaid: true,
     hooks: {
       onBrokenMarkdownLinks: 'warn',
     },
   },
+
+  themes: ['@docusaurus/theme-mermaid'],
 
   presets: [
     [
@@ -67,6 +70,7 @@ const config = {
       copyright: `Copyright ${new Date().getFullYear()} CS3227 MP1.`,
     },
     prism: {
+      additionalLanguages: ['gherkin'],
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
     },
