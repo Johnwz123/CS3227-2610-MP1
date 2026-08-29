@@ -57,6 +57,7 @@ public final class BudgetsView {
   public VBox build(YearMonth month) {
     TableView<CategorySummary> budgets =
         tables.create(service.dashboard(month).categorySummaries());
+    budgets.setId("budget-table");
     tables.addActions(
         budgets,
         category -> saveBudget(category, budgets, month),

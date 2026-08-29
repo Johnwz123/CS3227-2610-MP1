@@ -46,6 +46,7 @@ public final class BudgetBotWindow {
     Button dashboard = new Button("Dashboard");
     Button transactions = new Button("Transactions");
     Button budgets = new Button("Budgets");
+    budgets.setId("budgets-navigation");
     Button settings = new Button("Settings");
     dashboard.setOnAction(event -> coordinator.showDashboard());
     transactions.setOnAction(event -> coordinator.showTransactions());

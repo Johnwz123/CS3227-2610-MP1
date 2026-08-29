@@ -145,8 +145,21 @@ class BudgetBotWindowUiTest {
 
   @Test
   void validatesBudgetFormWithVisibleFeedbackAndActions(FxRobot robot) throws TimeoutException {
-    click(robot, "Budgets");
-    click(robot, "Set budget");
+    Button budgetsNavigation = robot.lookup("#budgets-navigation").queryAs(Button.class);
+    robot.interact(budgetsNavigation::fire);
+    WaitForAsyncUtils.waitForFxEvents();
+    WaitForAsyncUtils.waitFor(
+        5, TimeUnit.SECONDS, () -> robot.lookup("#budget-table").tryQuery().isPresent());
+    TableView<?> budgets = robot.lookup("#budget-table").queryAs(TableView.class);
+    robot.interact(
+        () -> {
+          budgets.scrollTo(0);
+          budgets.getScene().getRoot().applyCss();
+          budgets.getScene().getRoot().layout();
+        });
+    WaitForAsyncUtils.waitFor(
+        5, TimeUnit.SECONDS, () -> robot.lookup(".set-budget-action").tryQuery().isPresent());
+    click(robot, robot.lookup(".set-budget-action").queryAs(Button.class));
     click(robot, button(dialog(robot), "Save"));
     TextFlow validation = robot.lookup("#budget-validation-message").queryAs(TextFlow.class);
     Text validationText = (Text) validation.getChildren().getFirst();

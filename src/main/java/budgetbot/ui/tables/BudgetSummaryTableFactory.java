@@ -18,6 +18,7 @@ import javafx.scene.layout.HBox;
 /** Builds category budget summary tables, state styling, and category row actions. */
 public final class BudgetSummaryTableFactory {
   private static final String TABLE_ACTION_STYLE_CLASS = "table-action";
+  private static final String SET_BUDGET_ACTION_STYLE_CLASS = "set-budget-action";
   private static final String NORMAL_REMAINING_STYLE_CLASS = "normal-remaining";
   private static final String WARNING_REMAINING_STYLE_CLASS = "warning-remaining";
   private static final String OVER_BUDGET_REMAINING_STYLE_CLASS = "over-budget-remaining";
@@ -68,7 +69,9 @@ public final class BudgetSummaryTableFactory {
 
               {
                 buttons.getStyleClass().add("row-actions");
-                setBudgetButton.getStyleClass().add(TABLE_ACTION_STYLE_CLASS);
+                setBudgetButton
+                    .getStyleClass()
+                    .addAll(TABLE_ACTION_STYLE_CLASS, SET_BUDGET_ACTION_STYLE_CLASS);
                 renameButton.getStyleClass().add(TABLE_ACTION_STYLE_CLASS);
                 removeButton.getStyleClass().addAll(TABLE_ACTION_STYLE_CLASS, "danger-action");
                 setBudgetButton.setOnAction(event -> setBudget.accept(row().category()));
