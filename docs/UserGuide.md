@@ -23,6 +23,19 @@ Open the repository's [GitHub Releases](https://github.com/johnwz123/CS3227-2610
 
 Download packages only from the repository's [GitHub Releases page](https://github.com/johnwz123/CS3227-2610-MP1/releases). Packages are currently unsigned; Windows and macOS may display a trust warning. Continue only after checking the package source came from this repository's GitHub Release.
 
+### Portable FAT JAR alternative
+
+Alternatively, you can also download `release/BudgetBot.jar` and run BudgetBot from the JAR file without installing BudgetBot. This alternative requires a Java 25 or newer runtime but does not require Gradle. 
+
+From the folder containing the `BudgetBot.jar` file, run:
+
+```shell
+java -jar BudgetBot.jar
+```
+
+The JAR includes BudgetBot, SQLite JDBC, and the required JavaFX libraries.
+Unlike the native MSI, DMG, and DEB packages, it does not include Java itself.
+
 ### Data, privacy, and first launch
 
 BudgetBot stores its data in a SQLite file at the following location in the current user's home directory:

@@ -30,6 +30,14 @@ Open the repository's [GitHub Releases](https://github.com/johnwz123/CS3227-2610
 - **macOS:** Download `BudgetBot-<version>-macos.dmg`, open it, drag BudgetBot to **Applications**, and launch it from Applications.
 - **Debian/Ubuntu Linux:** Download `BudgetBot-<version>-linux.deb` and install it with the system software installer, or run `sudo apt install ./BudgetBot-<version>-linux.deb`. Launch BudgetBot from the applications menu.
 
+Alternatively, `release/BudgetBot.jar` is an executable x86-64 FAT JAR containing SQLite JDBC and the JavaFX runtimes for Windows, Linux, and Intel macOS. 
+
+Install Java 25 or newer and run:
+
+```shell
+java -jar release/BudgetBot.jar
+```
+
 Packages are currently unsigned and macOS packages are not notarized. A trust warning can therefore be expected. Continue only after verifying that the package came from this repository's GitHub Release.
 
 Installing a newer package over an existing installation preserves the separate local database. A normal uninstall removes application files but keeps the database. To clear all local data, close BudgetBot and delete the `.budgetbot` directory in the user's home directory.
@@ -40,6 +48,7 @@ Installing a newer package over an existing installation preserves the separate 
 .
 ├── src/main/java/budgetbot/
 │   ├── BudgetBotApp.java                  JavaFX entry point and composition root
+│   ├── BudgetBotLauncher.java             executable FAT JAR entry point
 │   ├── DatabasePaths.java                 default and normalized database paths
 │   ├── model/                             immutable records and enums
 │   ├── persistence/                       SQLite facade, repositories, and schema
@@ -51,9 +60,10 @@ Installing a newer package over an existing installation preserves the separate 
 ├── docs/                                  User Guide, Developer Guide, and reflection workspace
 ├── openspec/                              specifications and archived proposal/design/task artifacts
 ├── scripts/                               cross-platform database launchers and CI coverage formatter
+├── release/                               executable FAT JAR and its run/rebuild instructions
 ├── config/                                Checkstyle, PMD, and SpotBugs configuration
 ├── .github/workflows/                     CI, GitHub Pages, and native release workflows
 ├── website/                               Docusaurus documentation site
-├── build.gradle                           Java, quality, coverage, database-tool, and packaging tasks
+├── build.gradle                           Java, quality, coverage, database-tool, FAT JAR, and packaging tasks
 └── gradle/wrapper/                        pinned Gradle Wrapper distribution
 ```

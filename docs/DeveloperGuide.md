@@ -1051,9 +1051,30 @@ The Mermaid blocks in this guide are source-controlled diagrams. GitHub renders 
 
 `.github/dependabot.yml` checks the Gradle ecosystem at `/`, npm dependencies at `/website`, and GitHub Actions dependencies at `/`, each weekly. Generated lockfile changes and major tool upgrades still require the normal review and quality gate.
 
-## Native packaging and release workflow
+## Distribution and release workflow
 
-### Local packaging
+### Executable FAT JAR
+
+The `releaseJar` task delegates to Gradle Shadow's `shadowJar` task and creates `release/BudgetBot.jar`:
+
+```powershell
+# Windows PowerShell
+.\gradlew.bat clean releaseJar
+java -jar release\BudgetBot.jar
+```
+
+```sh
+# macOS/Linux
+./gradlew clean releaseJar
+java -jar release/BudgetBot.jar
+```
+
+The manifest starts `BudgetBotLauncher`, a plain Java entry point which delegates to `BudgetBotApp`. This avoids the Java launcher treating the bundled JavaFX application class as a JavaFX module-path launch. Shadow merges the application and runtime classpath, including SQLite JDBC and JavaFX. Explicit
+`javafx-graphics` classifiers contribute the x86-64 native libraries for Windows, Linux, and Intel macOS. `Enable-Native-Access: ALL-UNNAMED` in the manifest allows JavaFX to load those native libraries when users run the plain`java -jar` command.
+
+The FAT JAR includes application dependencies but not a Java runtime. Users therefore need Java 25 or newer. ARM targets need a corresponding architecture-specific JavaFX build or should use the native installer produced for that platform.
+
+### Local native packaging
 
 Native packaging requires a full JDK 25 with `jpackage`; a runtime-only JDK is insufficient. The Windows MSI path additionally requires WiX Toolset on `PATH`.
 
@@ -1108,20 +1129,20 @@ The publish job waits for every required matrix entry. It downloads the three ar
 
 This matrix maps a direct route from requirement to implementation and automated evidence.
 
-| Requirement                                       | Implementation evidence                                                                                 | Automated evidence                                                                     |
-|---------------------------------------------------|---------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------|
-| Local single-user app persists without an account | `BudgetBotApp`, `DatabasePaths`, `BudgetDatabase`, `SchemaInitializer`                                  | `BudgetBotAppTest`, `BudgetDatabaseTest` initialization/reopen tests                   |
-| Default and configurable categories               | `SchemaInitializer`, `CategoryRepository`, `CategoryDialog`, `BudgetsView`                              | `BudgetServiceTest`, `BudgetDatabaseTest`, UI category workflow                        |
-| Income/expense CRUD and validation                | `Transaction`, `BudgetService`, `TransactionRepository`, `TransactionDialog`, `TransactionTableFactory` | service validation/CRUD tests, persistence CRUD test, TestFX CRUD/validation tests     |
-| Selected-month net cash flow                      | `TransactionRepository.netCashFlow`, `BudgetService.dashboard`, `DashboardView`                         | month-scoped and empty-month service tests, UI Dashboard assertion                     |
-| Fixed monthly budgets and statuses                | `MonthlyBudget`, `MonthlyBudgetRepository`, `BudgetService.stateFor`, `BudgetSummaryTableFactory`       | state boundary/no-carryover service and persistence tests                              |
-| Future warning threshold                          | `BudgetSettings`, `SettingsRepository`, `SettingsView`, monthly snapshot creation                       | settings and snapshot tests, UI settings workflow                                      |
-| Search/filter history                             | `TransactionQuery`, `BudgetService.transactions`, `TransactionRepository.find`, `TransactionsView`      | independent/combined/inclusive/one-sided service and persistence tests; TestFX filters |
-| Safe category reassignment/removal                | `CategoryRepository.remove` transaction, service final-category guard, replacement dialog               | persistence/service category tests, UI management test                                 |
-| Repeatable database setup                         | `DatabaseTool`, `DatabasePaths`, `scripts/*.ps1`, `scripts/*.sh`, Gradle `databaseTool`                 | `DatabaseToolTest` reset/seed/path/sidecar tests                                       |
-| Quality and structural enforcement                | Gradle configuration, `config/`, `ArchitectureTest`, `scripts/summarize_jacoco.py`                      | `check`, coverage verification, reports, CI                                            |
-| Cross-platform packaged delivery                  | `packageAppImage`, `packageNative`, release matrix                                                      | Windows/Ubuntu full gate; macOS static/package path                                    |
-| Requirements/design/process visibility            | `openspec/changes/archive`, `openspec/specs`, `CONTRIBUTING.md`, docs site                              | archived task completion, CI documentation build                                       |
+| Requirement                                       | Implementation evidence                                                                                 | Automated evidence                                                                         |
+|---------------------------------------------------|---------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
+| Local single-user app persists without an account | `BudgetBotApp`, `DatabasePaths`, `BudgetDatabase`, `SchemaInitializer`                                  | `BudgetBotAppTest`, `BudgetDatabaseTest` initialization/reopen tests                       |
+| Default and configurable categories               | `SchemaInitializer`, `CategoryRepository`, `CategoryDialog`, `BudgetsView`                              | `BudgetServiceTest`, `BudgetDatabaseTest`, UI category workflow                            |
+| Income/expense CRUD and validation                | `Transaction`, `BudgetService`, `TransactionRepository`, `TransactionDialog`, `TransactionTableFactory` | service validation/CRUD tests, persistence CRUD test, TestFX CRUD/validation tests         |
+| Selected-month net cash flow                      | `TransactionRepository.netCashFlow`, `BudgetService.dashboard`, `DashboardView`                         | month-scoped and empty-month service tests, UI Dashboard assertion                         |
+| Fixed monthly budgets and statuses                | `MonthlyBudget`, `MonthlyBudgetRepository`, `BudgetService.stateFor`, `BudgetSummaryTableFactory`       | state boundary/no-carryover service and persistence tests                                  |
+| Future warning threshold                          | `BudgetSettings`, `SettingsRepository`, `SettingsView`, monthly snapshot creation                       | settings and snapshot tests, UI settings workflow                                          |
+| Search/filter history                             | `TransactionQuery`, `BudgetService.transactions`, `TransactionRepository.find`, `TransactionsView`      | independent/combined/inclusive/one-sided service and persistence tests; TestFX filters     |
+| Safe category reassignment/removal                | `CategoryRepository.remove` transaction, service final-category guard, replacement dialog               | persistence/service category tests, UI management test                                     |
+| Repeatable database setup                         | `DatabaseTool`, `DatabasePaths`, `scripts/*.ps1`, `scripts/*.sh`, Gradle `databaseTool`                 | `DatabaseToolTest` reset/seed/path/sidecar tests                                           |
+| Quality and structural enforcement                | Gradle configuration, `config/`, `ArchitectureTest`, `scripts/summarize_jacoco.py`                      | `check`, coverage verification, reports, CI                                                |
+| Cross-platform packaged delivery                  | `releaseJar`, `shadowJar`, `packageAppImage`, `packageNative`, release matrix                           | FAT JAR inspection and Windows launch; Windows/Ubuntu full gate; macOS static/package path |
+| Requirements/design/process visibility            | `openspec/changes/archive`, `openspec/specs`, `CONTRIBUTING.md`, docs site                              | archived task completion, CI documentation build                                           |
 
 ## Known limitations and future work
 
@@ -1142,6 +1163,7 @@ This section records the external frameworks, conventions, project artifacts, an
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
 | [OpenJFX](https://openjfx.io/)                                                                                                                                         | JavaFX Controls desktop UI and JavaFX application lifecycle.                                                                                |
 | [Gradle Wrapper documentation](https://docs.gradle.org/current/userguide/gradle_wrapper.html)                                                                          | Wrapper-based, reproducible build invocation.                                                                                               |
+| [Gradle Shadow](https://gradleup.com/shadow/)                                                                                                                          | Executable FAT JAR assembly, dependency/resource merging, and manifest configuration.                                                       |
 | [SQLite documentation](https://www.sqlite.org/docs.html) and [Xerial SQLite JDBC](https://github.com/xerial/sqlite-jdbc)                                               | Embedded database model, JDBC access, SQLite sidecar awareness, and driver dependency.                                                      |
 | [JUnit 5/Jupiter](https://junit.org/junit5/)                                                                                                                           | Test structure, assertions, lifecycle, and JUnit Platform execution.                                                                        |
 | [Mockito](https://site.mockito.org/), [Hamcrest](https://hamcrest.org/), and [TestFX](https://github.com/TestFX/TestFX)                                                | Declared test dependencies and TestFX JavaFX interaction conventions; current tests mainly use real temporary storage and JUnit assertions. |
