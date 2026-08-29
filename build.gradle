@@ -46,9 +46,20 @@ javafx {
 
 dependencies {
     implementation 'org.xerial:sqlite-jdbc:3.53.2.1'
+
+    // Cross-platform JavaFX runtime modules for FAT JAR bundling
+    runtimeOnly 'org.openjfx:javafx-base:25.0.1:win'
+    runtimeOnly 'org.openjfx:javafx-base:25.0.1:linux'
+    runtimeOnly 'org.openjfx:javafx-base:25.0.1:mac-aarch64'
+
+    runtimeOnly 'org.openjfx:javafx-controls:25.0.1:win'
+    runtimeOnly 'org.openjfx:javafx-controls:25.0.1:linux'
+    runtimeOnly 'org.openjfx:javafx-controls:25.0.1:mac-aarch64'
+
     runtimeOnly 'org.openjfx:javafx-graphics:25.0.1:win'
     runtimeOnly 'org.openjfx:javafx-graphics:25.0.1:linux'
-    runtimeOnly 'org.openjfx:javafx-graphics:25.0.1:mac'
+    runtimeOnly 'org.openjfx:javafx-graphics:25.0.1:mac-aarch64'
+
     spotbugsPlugins 'com.h3xstream.findsecbugs:findsecbugs-plugin:1.14.0'
     testImplementation 'org.junit.jupiter:junit-jupiter:6.1.3'
     testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.2'
