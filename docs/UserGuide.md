@@ -267,15 +267,15 @@ To set a budget, select **Set budget** in a category row. The dialog title is **
 
 A newly installed application contains these expense categories, shown alphabetically in the tables:
 
-1. Housing & Utilities
-2. Groceries
-3. Dining
-4. Transport
-5. Health
-6. Entertainment
-7. Shopping
-8. Education
-9. Miscellaneous
+1. Dining
+2. Education
+3. Entertainment
+4. Groceries
+5. Health 
+6. Housing & Utilities 
+7. Miscellaneous 
+8. Shopping 
+9. Transport
 
 Their initial monthly budget amount is zero until a budget is set or a prior monthly base amount is inherited.
 
